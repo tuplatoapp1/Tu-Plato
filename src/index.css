@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tuplato: #2e5342;
+  --color-tuplato-dark: #1e3b2f;
+  --color-tuplato-light: #4a7c65;
+  --color-tuplato-bg: #f2f7f5;
+}

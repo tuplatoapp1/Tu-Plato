@@ -1,0 +1,5 @@
+{
+  "name": "Tu Plato",
+  "description": "Sistema de gestión de inventario para Tu Plato.",
+  "requestFramePermissions": ["geolocation"]
+}
