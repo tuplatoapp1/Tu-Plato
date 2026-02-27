@@ -1,11 +1,14 @@
+export type MenuTag = string;
+
 export interface MenuItem {
   id: string;
   name: string;
   description: string;
   price: number;
-  category: 'entradas' | 'principales' | 'bebidas' | 'postres';
+  category: string;
   image: string;
   isAvailable: boolean;
+  tags?: MenuTag[];
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -16,7 +19,8 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 8.50,
     category: 'entradas',
     image: 'https://images.unsplash.com/photo-1572695157363-bc31c5d4efb5?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['vegan', 'popular']
   },
   {
     id: '2',
@@ -34,7 +38,8 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 18.00,
     category: 'principales',
     image: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['popular']
   },
   {
     id: '4',
@@ -43,7 +48,8 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 22.50,
     category: 'principales',
     image: 'https://images.unsplash.com/photo-1467003909585-2f8a7270028d?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['new']
   },
   {
     id: '5',
@@ -52,7 +58,8 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 7.50,
     category: 'postres',
     image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['popular']
   },
   {
     id: '6',
@@ -70,7 +77,8 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 9.00,
     category: 'bebidas',
     image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['popular']
   },
   {
     id: '8',
@@ -79,6 +87,7 @@ export const MENU_ITEMS: MenuItem[] = [
     price: 4.50,
     category: 'bebidas',
     image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
-    isAvailable: true
+    isAvailable: true,
+    tags: ['vegan']
   }
 ];

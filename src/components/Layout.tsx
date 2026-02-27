@@ -15,7 +15,7 @@ type MenuItemType = {
   children?: MenuItemType[];
 };
 
-function SidebarItem({ item, setIsMenuOpen, level = 0 }: { item: MenuItemType, setIsMenuOpen: (v: boolean) => void, level?: number }) {
+function SidebarItem({ item, setIsMenuOpen, level = 0 }: { key?: string, item: MenuItemType, setIsMenuOpen: (v: boolean) => void, level?: number }) {
   const { getIconComponent } = useUI();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();

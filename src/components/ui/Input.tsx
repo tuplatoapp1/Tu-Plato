@@ -1,9 +1,17 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  className?: string;
+  placeholder?: string;
+  type?: string;
+  value?: any;
+  onChange?: any;
+  required?: boolean;
+  min?: string | number;
+  step?: string | number;
 }
 
 export function Input({ className, label, error, ...props }: InputProps) {

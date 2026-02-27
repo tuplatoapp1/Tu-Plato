@@ -1,9 +1,15 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  children?: React.ReactNode;
+  onClick?: any;
+  disabled?: boolean;
+  type?: any;
+  title?: string;
 }
 
 export function Button({ className, variant = 'primary', size = 'md', ...props }: ButtonProps) {
