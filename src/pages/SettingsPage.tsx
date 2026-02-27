@@ -34,28 +34,31 @@ export default function SettingsPage() {
       </div>
 
       {/* Modern Tabs */}
-      <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-gray-200 inline-flex relative">
-        <div className="absolute inset-0 rounded-2xl pointer-events-none border border-gray-100/50" />
-        {['icons', 'departments'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 z-10 flex items-center gap-2 ${
-              activeTab === tab ? 'text-tuplato shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {activeTab === tab && (
-              <motion.div
-                layoutId="activeTabBg"
-                className="absolute inset-0 bg-tuplato/10 rounded-xl -z-10"
-                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-              />
-            )}
-            {tab === 'icons' && <LayoutGrid className="w-4 h-4" />}
-            {tab === 'departments' && <Briefcase className="w-4 h-4" />}
-            {tab === 'icons' ? 'Iconos de la Web' : 'Departamentos'}
-          </button>
-        ))}
+      <div className="w-full overflow-x-auto pb-2 no-scrollbar">
+        <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-gray-200 inline-flex relative min-w-max">
+          <div className="absolute inset-0 rounded-2xl pointer-events-none border border-gray-100/50" />
+          {['logo', 'icons', 'departments'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 z-10 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === tab ? 'text-tuplato shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {activeTab === tab && (
+                <motion.div
+                  layoutId="activeTabBg"
+                  className="absolute inset-0 bg-tuplato/10 rounded-xl -z-10"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              {tab === 'logo' && <ImageIcon className="w-4 h-4 shrink-0" />}
+              {tab === 'icons' && <LayoutGrid className="w-4 h-4 shrink-0" />}
+              {tab === 'departments' && <Briefcase className="w-4 h-4 shrink-0" />}
+              {tab === 'logo' ? 'Logo de la App' : tab === 'icons' ? 'Iconos de la Web' : 'Departamentos'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -66,9 +69,73 @@ export default function SettingsPage() {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
+          {activeTab === 'logo' && <LogoSettings />}
           {activeTab === 'icons' && <IconsSettings />}
           {activeTab === 'departments' && <DepartmentsSettings />}
         </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function LogoSettings() {
+  const { appLogo, updateAppLogo } = useUI();
+  const [isIconSelectorOpen, setIsIconSelectorOpen] = useState(false);
+
+  // Helper to render icon
+  const renderIcon = (icon: string, type: 'lucide' | 'custom') => {
+    if (type === 'custom') {
+      return <img src={icon} alt="logo" className="w-full h-full object-cover" />;
+    }
+    // @ts-ignore
+    const Icon = LucideIcons[icon] || LucideIcons.ChefHat;
+    return <Icon className="w-full h-full" />;
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">Logo de la Aplicación</h2>
+          <p className="text-gray-500 mt-2">Este logo aparecerá en la barra lateral y en la cabecera principal.</p>
+        </div>
+
+        <div className="flex flex-col items-center justify-center space-y-8">
+          {/* Circular Frame for Logo */}
+          <div className="relative group">
+            <div className="w-40 h-40 rounded-full bg-gray-50 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden relative z-10 p-2">
+              <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-white">
+                {renderIcon(appLogo.value, appLogo.type)}
+              </div>
+            </div>
+            
+            {/* Decorative background ring */}
+            <div className="absolute inset-0 rounded-full border-2 border-tuplato/20 scale-110 -z-10" />
+            <div className="absolute inset-0 rounded-full border border-tuplato/10 scale-125 -z-10" />
+          </div>
+
+          <Button 
+            onClick={() => setIsIconSelectorOpen(true)}
+            className="bg-tuplato hover:bg-tuplato-dark text-white shadow-lg shadow-tuplato/20 px-8 h-12 rounded-xl font-bold transition-all hover:-translate-y-0.5"
+          >
+            <ImageIcon className="w-5 h-5 mr-2" />
+            Cambiar Logo
+          </Button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isIconSelectorOpen && (
+          <IconSelectorModal 
+            itemKey="app-logo"
+            currentConfig={appLogo}
+            onClose={() => setIsIconSelectorOpen(false)}
+            onSave={(type, value) => {
+              updateAppLogo(type, value);
+              setIsIconSelectorOpen(false);
+            }}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

@@ -8,89 +8,177 @@ import { InventoryItem, Movement } from '../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import { useParams } from 'react-router-dom';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function InventoryPage() {
+  const { department } = useParams<{ department?: string }>();
   const { items, movements, addItem, deleteItem, addMovement } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'low_stock'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isGlobalMovementModalOpen, setIsGlobalMovementModalOpen] = useState(false);
   const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, department, activeFilter]);
 
-  const lowStockItems = items.filter(i => i.quantity <= i.minStock);
+  const departmentItems = department 
+    ? items.filter(item => item.department === department)
+    : items;
+
+  const departmentMovements = department
+    ? movements.filter(m => m.department === department)
+    : movements;
+
+  const filteredItems = departmentItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = activeFilter === 'all' || (activeFilter === 'low_stock' && item.quantity <= item.minStock);
+    return matchesSearch && matchesFilter;
+  });
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const lowStockItems = departmentItems.filter(i => i.quantity <= i.minStock);
   const lowStockCount = lowStockItems.length;
+
+  const handleAddItem = (item: Omit<InventoryItem, 'id'>) => {
+    addItem({ ...item, department });
+  };
+
+  const title = department 
+    ? `Inventario - ${department.charAt(0).toUpperCase() + department.slice(1)}`
+    : 'Inventario General';
+
+  const getCategoryColor = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes('lácteo') || cat.includes('lacteo')) return 'bg-blue-100 text-blue-700';
+    if (cat.includes('carne') || cat.includes('pollo') || cat.includes('pescado')) return 'bg-red-100 text-red-700';
+    if (cat.includes('licor') || cat.includes('alcohol') || cat.includes('vino')) return 'bg-purple-100 text-purple-700';
+    if (cat.includes('vegetal') || cat.includes('fruta') || cat.includes('verdura')) return 'bg-green-100 text-green-700';
+    if (cat.includes('bebida') || cat.includes('refresco')) return 'bg-cyan-100 text-cyan-700';
+    if (cat.includes('limpieza')) return 'bg-teal-100 text-teal-700';
+    return 'bg-gray-100 text-gray-700';
+  };
 
   return (
     <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-gray-100">
         <div>
-          <h1 className="text-3xl font-bold text-tuplato tracking-tight">Inventario</h1>
-          <p className="text-gray-500 mt-1">Gestione sus productos y existencias de forma eficiente</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Button 
-            onClick={() => setIsGlobalMovementModalOpen(true)} 
-            className="flex-1 sm:flex-none bg-white text-tuplato border-2 border-tuplato hover:bg-tuplato hover:text-white shadow-sm hover:shadow-md transition-all h-12 sm:h-11"
-          >
-            <Activity className="w-5 h-5 mr-2" />
-            INGRESO/SALIDA
-          </Button>
-          <Button 
-            onClick={() => setIsAddModalOpen(true)} 
-            className="flex-1 sm:flex-none bg-tuplato text-white shadow-lg shadow-tuplato/30 hover:shadow-tuplato/50 hover:bg-tuplato-dark border-0 transition-all transform hover:-translate-y-0.5 h-12 sm:h-11"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Nuevo Producto
-          </Button>
+          <h1 className="text-4xl font-bold text-gray-900 tracking-tight mb-2">{title}</h1>
+          <p className="text-gray-500 text-sm">Gestiona tus productos, controla el stock y registra movimientos.</p>
         </div>
       </div>
 
-      {/* Stats Cards (Moved from Home, Responsive) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="border-l-4 border-l-tuplato shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Productos</p>
-              <h3 className="text-2xl font-extrabold text-tuplato mt-1">{items.length}</h3>
-            </div>
-            <div className="p-3 bg-tuplato/10 rounded-xl">
-              <Package className="w-6 h-6 text-tuplato" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <Package className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Total Productos</p>
+            <h3 className="text-2xl font-bold text-gray-900">{departmentItems.length}</h3>
+          </div>
+        </div>
+        
+        <div 
           onClick={() => setIsLowStockModalOpen(true)}
-          className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-orange-50/30"
+          className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-orange-200 hover:shadow-md transition-all group"
         >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Stock Bajo</p>
-              <h3 className="text-2xl font-extrabold text-orange-600 mt-1">{lowStockCount}</h3>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-xl">
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition-colors">
+            <AlertTriangle className="w-6 h-6 text-orange-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Stock Bajo</p>
+            <h3 className="text-2xl font-bold text-orange-600">{lowStockCount}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+            <Activity className="w-6 h-6 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Movimientos Hoy</p>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {departmentMovements.filter(m => new Date(m.date).toDateString() === new Date().toDateString()).length}
+            </h3>
+          </div>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative group">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400 group-focus-within:text-tuplato transition-colors" />
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="text"
+              placeholder="Buscar productos..." 
+              className="w-full pl-11 pr-10 py-3 bg-transparent border-none focus:ring-0 text-sm outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 px-4 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-100 pt-2 sm:pt-0">
+            <span className="text-sm text-gray-500 font-medium whitespace-nowrap">{filteredItems.length} resultados</span>
+          </div>
         </div>
-        <Input 
-          placeholder="Buscar por nombre o categoría..." 
-          className="pl-10 py-6 border-gray-200 bg-white shadow-sm focus:border-tuplato focus:ring-4 focus:ring-tuplato/10 transition-all rounded-xl text-lg"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+
+        {/* Quick Filters (Chips) */}
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+              activeFilter === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setActiveFilter('low_stock')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+              activeFilter === 'low_stock' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Stock Bajo
+          </button>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+        <Button 
+          onClick={() => setIsGlobalMovementModalOpen(true)} 
+          className="bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm h-14 px-5 rounded-2xl font-bold text-sm transition-all"
+        >
+          <Activity className="w-5 h-5 mr-2 text-blue-500" />
+          Registrar Movimiento
+        </Button>
+        <Button 
+          onClick={() => setIsAddModalOpen(true)} 
+          className="bg-gray-900 text-white hover:bg-black shadow-md h-14 px-5 rounded-2xl font-bold text-sm transition-all"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Nuevo Producto
+        </Button>
       </div>
 
       {/* Product Grid */}
@@ -103,47 +191,57 @@ export default function InventoryPage() {
           <p className="text-gray-500 mt-1">Intente con otra búsqueda o agregue un nuevo producto.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {filteredItems.map((item) => (
-            <motion.div
-              key={item.id}
-              layoutId={item.id}
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+            {paginatedItems.map((item) => (
+              <motion.div
+                key={item.id}
+                layoutId={item.id}
               onClick={() => setSelectedItem(item)}
-              className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-tuplato/30 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
-              whileHover={{ y: -8 }}
+              className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-gray-200 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
+              whileHover={{ y: -4 }}
             >
-              <div className="aspect-square bg-gray-50 relative overflow-hidden">
+              <div className="h-32 sm:h-48 bg-gray-50 relative overflow-hidden">
                 <img 
                   src={item.image || `https://picsum.photos/seed/${item.id}/400/400`} 
                   alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
                 {item.quantity <= item.minStock && (
-                  <div className="absolute top-3 right-3 bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                    {item.quantity === 0 ? 'AGOTADO' : 'BAJO STOCK'}
+                  <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm text-red-600 text-[9px] sm:text-[10px] font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm border border-red-100 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span className="hidden sm:inline">{item.quantity === 0 ? 'AGOTADO' : 'STOCK BAJO'}</span>
+                    <span className="sm:hidden">{item.quantity === 0 ? '0' : '!'}</span>
                   </div>
                 )}
               </div>
-              <div className="p-4 flex-1 flex flex-col">
-                <div className="mb-2">
-                  <p className="text-[10px] font-bold text-tuplato uppercase tracking-wider mb-1">{item.category}</p>
-                  <h3 className="font-bold text-gray-900 line-clamp-1 text-lg group-hover:text-tuplato transition-colors" title={item.name}>{item.name}</h3>
+              <div className="p-3 sm:p-5 flex-1 flex flex-col">
+                <div className="mb-3 sm:mb-4">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <h3 className="font-bold text-gray-900 line-clamp-1 text-sm sm:text-lg group-hover:text-blue-600 transition-colors" title={item.name}>{item.name}</h3>
+                  </div>
+                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wider ${getCategoryColor(item.category)}`}>
+                    {item.category}
+                  </span>
                 </div>
                 
-                <div className="mt-auto pt-3 border-t border-gray-50 flex items-end justify-between">
+                <div className="mt-auto pt-3 sm:pt-4 border-t border-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Stock</p>
-                    <p className={`font-mono text-xl font-bold ${item.quantity <= item.minStock ? 'text-red-600' : 'text-gray-900'}`}>
-                      {item.quantity}
-                    </p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Stock Disponible</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className={`font-mono text-lg sm:text-2xl font-bold ${item.quantity <= item.minStock ? 'text-red-600' : 'text-gray-900'}`}>
+                        {item.quantity}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-gray-500 font-medium">{item.unit || 'unidades'}</span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="flex items-center text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {item.location || '-'}
+                  <div className="text-right w-full sm:w-auto">
+                    <div className="flex items-center justify-center sm:justify-start text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg w-full sm:w-auto">
+                      <MapPin className="w-3 h-3 mr-1 sm:mr-1.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{item.location || 'Sin ub.'}</span>
                     </div>
                   </div>
                 </div>
@@ -151,16 +249,22 @@ export default function InventoryPage() {
             </motion.div>
           ))}
         </div>
+        <Pagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          onPageChange={setCurrentPage} 
+        />
+        </>
       )}
 
       {/* Modals */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <AddItemModal onClose={() => setIsAddModalOpen(false)} onAdd={addItem} />
+          <AddItemModal onClose={() => setIsAddModalOpen(false)} onAdd={handleAddItem} />
         )}
         {isGlobalMovementModalOpen && (
           <GlobalMovementModal 
-            items={items} 
+            items={departmentItems} 
             onClose={() => setIsGlobalMovementModalOpen(false)} 
             onConfirm={addMovement} 
           />
@@ -202,37 +306,37 @@ function LowStockModal({ items, onClose, onSelect }: { items: InventoryItem[], o
   });
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] border border-gray-100"
       >
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 p-6 flex justify-between items-center text-white shrink-0">
+        <div className="bg-white border-b border-gray-100 p-5 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="bg-orange-50 p-2 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <h2 className="font-bold text-xl">Atención Requerida</h2>
-              <p className="text-white/90 text-sm font-medium">{items.length} productos con stock crítico</p>
+              <h2 className="font-bold text-gray-900 text-lg">Atención Requerida</h2>
+              <p className="text-gray-500 text-xs font-medium">{items.length} productos con stock crítico</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6" /></button>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"><X className="w-5 h-5" /></button>
         </div>
         
         <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50/50">
           {sortedItems.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="bg-green-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Package className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900">¡Todo en orden!</h3>
-              <p>No hay productos con stock bajo.</p>
+              <p className="text-sm mt-1">No hay productos con stock bajo.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {sortedItems.map(item => {
                 const isOutOfStock = item.quantity === 0;
                 return (
@@ -241,15 +345,15 @@ function LowStockModal({ items, onClose, onSelect }: { items: InventoryItem[], o
                     onClick={() => onSelect(item)}
                     className={`flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer group relative overflow-hidden ${
                       isOutOfStock 
-                        ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300' 
-                        : 'bg-white border-gray-100 hover:border-orange-200 hover:bg-orange-50'
+                        ? 'bg-red-50/50 border-red-100 hover:bg-red-50 hover:border-red-200' 
+                        : 'bg-white border-gray-100 hover:border-orange-200 hover:shadow-sm'
                     }`}
                   >
                     {isOutOfStock && (
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
                     )}
                     
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 relative">
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 relative border border-gray-200/50">
                       <img 
                         src={item.image || `https://picsum.photos/seed/${item.id}/100/100`} 
                         alt={item.name}
@@ -260,11 +364,11 @@ function LowStockModal({ items, onClose, onSelect }: { items: InventoryItem[], o
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className={`font-bold truncate text-sm ${isOutOfStock ? 'text-red-700' : 'text-gray-900 group-hover:text-orange-700'}`}>
+                        <h3 className={`font-bold truncate text-sm ${isOutOfStock ? 'text-red-700' : 'text-gray-900 group-hover:text-orange-600'}`}>
                           {item.name}
                         </h3>
                         {isOutOfStock && (
-                          <span className="bg-red-100 text-red-700 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                          <span className="bg-red-100 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
                             Agotado
                           </span>
                         )}
@@ -299,7 +403,8 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
     location: '',
     quantity: 0,
     minStock: 5,
-    image: ''
+    image: '',
+    unit: 'Unidades'
   });
   const [isCompressing, setIsCompressing] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -329,28 +434,28 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-100"
       >
-        <div className="bg-gradient-to-r from-tuplato to-tuplato-dark p-6 flex justify-between items-center text-white shrink-0">
+        <div className="bg-white border-b border-gray-100 p-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              <Package className="w-6 h-6 text-white" />
+            <div className="bg-gray-100 p-2.5 rounded-xl">
+              <Package className="w-5 h-5 text-gray-700" />
             </div>
             <div>
-              <h2 className="font-bold text-xl tracking-tight">Nuevo Producto</h2>
-              <p className="text-tuplato-light text-sm opacity-90 font-medium">Complete la información del inventario</p>
+              <h2 className="font-bold text-xl text-gray-900 tracking-tight">Nuevo Producto</h2>
+              <p className="text-gray-500 text-sm font-medium">Complete la información del inventario</p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="p-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
         
@@ -434,6 +539,25 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
                       onChange={e => setFormData({...formData, category: e.target.value})}
                       className="bg-white border-gray-200 focus:border-tuplato focus:ring-tuplato/20 h-11 shadow-sm"
                     />
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700">Unidad de Medida</label>
+                      <select 
+                        value={formData.unit}
+                        onChange={e => setFormData({...formData, unit: e.target.value})}
+                        className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-tuplato focus:border-transparent shadow-sm transition-all"
+                      >
+                        <option value="Unidades">Unidades</option>
+                        <option value="Kg">Kilogramos (Kg)</option>
+                        <option value="Litros">Litros (L)</option>
+                        <option value="Cajas">Cajas</option>
+                        <option value="Paquetes">Paquetes</option>
+                        <option value="Gramos">Gramos (g)</option>
+                        <option value="Mililitros">Mililitros (ml)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-5">
                     <Input 
                       label="Ubicación" 
                       placeholder="Ej. Estante A1"
@@ -482,13 +606,13 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
                 type="button" 
                 variant="secondary" 
                 onClick={onClose} 
-                className="px-6 h-12 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-transparent"
+                className="px-6 h-11 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-transparent font-medium rounded-xl"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
-                className="bg-gradient-to-r from-tuplato to-tuplato-dark hover:from-tuplato-dark hover:to-tuplato text-white px-8 h-12 shadow-lg shadow-tuplato/20 rounded-xl font-bold tracking-wide transition-all transform hover:-translate-y-0.5"
+                className="bg-gray-900 text-white hover:bg-black px-8 h-11 shadow-md rounded-xl font-medium transition-all"
               >
                 Guardar Producto
               </Button>
@@ -556,27 +680,27 @@ function GlobalMovementModal({ items, onClose, onConfirm }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-100"
       >
-        <div className="flex shrink-0">
+        <div className="flex shrink-0 border-b border-gray-100">
           <button 
-            className={`flex-1 py-5 text-sm font-bold text-center transition-all relative ${activeTab === 'ENTRADA' ? 'text-green-700 bg-green-50' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
+            className={`flex-1 py-5 text-sm font-bold text-center transition-all relative ${activeTab === 'ENTRADA' ? 'text-green-600 bg-green-50/50' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
             onClick={() => { setActiveTab('ENTRADA'); setBatchItems([]); }}
           >
             REGISTRAR INGRESO
-            {activeTab === 'ENTRADA' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-green-600" />}
+            {activeTab === 'ENTRADA' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500" />}
           </button>
           <button 
-            className={`flex-1 py-5 text-sm font-bold text-center transition-all relative ${activeTab === 'SALIDA' ? 'text-blue-700 bg-blue-50' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
+            className={`flex-1 py-5 text-sm font-bold text-center transition-all relative ${activeTab === 'SALIDA' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
             onClick={() => { setActiveTab('SALIDA'); setBatchItems([]); }}
           >
             REGISTRAR SALIDA
-            {activeTab === 'SALIDA' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600" />}
+            {activeTab === 'SALIDA' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
           </button>
         </div>
         
@@ -599,7 +723,7 @@ function GlobalMovementModal({ items, onClose, onConfirm }: {
                     <option value="">Seleccionar producto...</option>
                     {items.map(item => (
                       <option key={item.id} value={item.id}>
-                        {item.name} (Stock: {item.quantity})
+                        {item.name} (Stock: {item.quantity} {item.unit || 'unidades'})
                       </option>
                     ))}
                   </select>
@@ -608,10 +732,10 @@ function GlobalMovementModal({ items, onClose, onConfirm }: {
                 {selectedItemId && (
                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-top-2">
                     <div className="flex justify-between items-center mb-4">
-                      <label className="block text-sm font-bold text-gray-700">Cantidad</label>
+                      <label className="block text-sm font-bold text-gray-700">Cantidad ({selectedItem?.unit || 'unidades'})</label>
                       {selectedItem && (
                         <div className="px-2 py-0.5 bg-gray-100 rounded-md text-xs font-medium text-gray-600">
-                          Stock: {selectedItem.quantity}
+                          Stock: {selectedItem.quantity} {selectedItem.unit || 'unidades'}
                         </div>
                       )}
                     </div>
@@ -685,7 +809,7 @@ function GlobalMovementModal({ items, onClose, onConfirm }: {
                         </div>
                         <div className="flex items-center gap-4">
                           <span className={`font-mono font-bold text-lg ${activeTab === 'ENTRADA' ? 'text-green-600' : 'text-blue-600'}`}>
-                            {activeTab === 'ENTRADA' ? '+' : '-'}{batchItem.quantity}
+                            {activeTab === 'ENTRADA' ? '+' : '-'}{batchItem.quantity} <span className="text-xs text-gray-500 font-medium">{item.unit || 'unidades'}</span>
                           </span>
                           <button 
                             onClick={() => handleRemoveFromBatch(batchItem.itemId)}
@@ -713,12 +837,12 @@ function GlobalMovementModal({ items, onClose, onConfirm }: {
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
-          <Button type="button" variant="secondary" onClick={onClose} className="px-6">Cancelar</Button>
+        <div className="p-5 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0">
+          <Button type="button" variant="secondary" onClick={onClose} className="px-6 h-11 font-medium rounded-xl border-gray-200 hover:bg-gray-50">Cancelar</Button>
           <Button 
             onClick={handleSubmit}
             disabled={batchItems.length === 0}
-            className={`text-white px-8 shadow-lg transition-transform hover:-translate-y-0.5 ${activeTab === 'ENTRADA' ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'}`}
+            className={`text-white px-8 h-11 font-medium rounded-xl shadow-md transition-all ${activeTab === 'ENTRADA' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             Confirmar {batchItems.length} {batchItems.length === 1 ? 'Movimiento' : 'Movimientos'}
           </Button>
@@ -735,10 +859,10 @@ function ProductDetailModal({ item, movements, onClose, onDelete }: {
   onDelete: () => void
 }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div 
         layoutId={item.id}
-        className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col border border-gray-100"
       >
         <div className="relative h-48 sm:h-64 bg-gray-100">
           <img 
@@ -749,65 +873,76 @@ function ProductDetailModal({ item, movements, onClose, onDelete }: {
           />
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+            className="absolute top-4 right-4 bg-black/40 backdrop-blur-md text-white p-2 rounded-full hover:bg-black/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-            <h2 className="text-2xl font-bold text-white">{item.name}</h2>
-            <p className="text-white/80">{item.category}</p>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                {item.category}
+              </span>
+            </div>
+            <h2 className="text-3xl font-bold text-white tracking-tight">{item.name}</h2>
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Stock Actual</p>
-              <p className={`text-2xl font-bold ${item.quantity <= item.minStock ? 'text-red-600' : 'text-tuplato'}`}>
-                {item.quantity} <span className="text-sm font-normal text-gray-500">unidades</span>
-              </p>
+        <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30">
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Stock Actual</p>
+              <div className="flex items-baseline gap-2">
+                <p className={`text-3xl font-bold font-mono ${item.quantity <= item.minStock ? 'text-red-600' : 'text-gray-900'}`}>
+                  {item.quantity}
+                </p>
+                <span className="text-sm font-medium text-gray-400">{item.unit || 'unidades'} / min {item.minStock}</span>
+              </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Ubicación</p>
-              <p className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-400" />
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Ubicación</p>
+              <p className="text-lg font-medium text-gray-900 flex items-center gap-2 mt-1">
+                <MapPin className="w-5 h-5 text-gray-400" />
                 {item.location || 'No asignada'}
               </p>
             </div>
           </div>
 
-          <div className="mb-6">
-            <h3 className="font-bold text-gray-900 mb-2">Descripción</h3>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              {item.description || 'Sin descripción disponible.'}
-            </p>
+          <div className="mb-8">
+            <h3 className="font-bold text-gray-900 mb-3 text-lg">Descripción</h3>
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-gray-600 text-sm leading-relaxed">
+                {item.description || 'Sin descripción disponible.'}
+              </p>
+            </div>
           </div>
 
           <div>
-            <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-tuplato" />
+            <h3 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-500" />
               Últimos Movimientos
             </h3>
             <div className="space-y-3">
               {movements.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">No hay movimientos registrados.</p>
+                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm text-center">
+                  <p className="text-sm text-gray-500">No hay movimientos registrados.</p>
+                </div>
               ) : (
                 movements.slice(0, 5).map(m => (
-                  <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-full ${m.type === 'ENTRADA' ? 'bg-green-100 text-green-700' : m.type === 'SALIDA' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {m.type === 'ENTRADA' ? <ArrowUpRight size={14} /> : m.type === 'SALIDA' ? <ArrowDownLeft size={14} /> : <Activity size={14} />}
+                  <div key={m.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2.5 rounded-xl ${m.type === 'ENTRADA' ? 'bg-green-50 text-green-600' : m.type === 'SALIDA' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-600'}`}>
+                        {m.type === 'ENTRADA' ? <ArrowUpRight size={18} /> : m.type === 'SALIDA' ? <ArrowDownLeft size={18} /> : <Activity size={18} />}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{m.type}</p>
-                        <p className="text-xs text-gray-500">{format(new Date(m.date), "d MMM yyyy, HH:mm", { locale: es })}</p>
+                        <p className="font-bold text-gray-900 text-sm">{m.type}</p>
+                        <p className="text-xs text-gray-500 font-medium">{format(new Date(m.date), "d MMM yyyy, HH:mm", { locale: es })}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className={`font-mono font-bold ${m.type === 'ENTRADA' ? 'text-green-600' : m.type === 'SALIDA' ? 'text-blue-600' : 'text-gray-600'}`}>
+                      <span className={`font-mono font-bold text-lg ${m.type === 'ENTRADA' ? 'text-green-600' : m.type === 'SALIDA' ? 'text-blue-600' : 'text-gray-600'}`}>
                         {m.type === 'SALIDA' ? '-' : '+'}{m.quantity}
                       </span>
-                      <p className="text-xs text-gray-500">{m.user}</p>
+                      <p className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">{m.user}</p>
                     </div>
                   </div>
                 ))
@@ -816,11 +951,11 @@ function ProductDetailModal({ item, movements, onClose, onDelete }: {
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+        <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
           <Button 
             variant="danger" 
             onClick={onDelete}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-none shadow-none"
           >
             <Trash2 className="w-4 h-4" />
             Eliminar Producto

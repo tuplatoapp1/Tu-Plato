@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Package, ChefHat } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function LoginPage() {
@@ -11,7 +13,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const { appLogo } = useUI();
   const navigate = useNavigate();
+
+  const renderLogo = (iconClassName: string, imageClassName: string = "w-full h-full object-cover") => {
+    if (appLogo.type === 'custom') {
+      return <img src={appLogo.value} alt="Logo" className={imageClassName} />;
+    }
+    // @ts-ignore
+    const Icon = LucideIcons[appLogo.value] || ChefHat;
+    return <Icon className={iconClassName} />;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +59,8 @@ export default function LoginPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="relative z-10 flex justify-center mb-4"
             >
-              <div className="bg-white p-4 rounded-full shadow-lg">
-                <ChefHat className="w-10 h-10 text-tuplato" />
+              <div className={`bg-white rounded-full shadow-lg flex items-center justify-center overflow-hidden mx-auto ${appLogo.type === 'custom' ? 'w-24 h-24' : 'w-20 h-20 p-4'}`}>
+                {renderLogo("w-12 h-12 text-tuplato")}
               </div>
             </motion.div>
             <h2 className="relative z-10 text-3xl font-bold text-white tracking-tight">Tu Plato</h2>

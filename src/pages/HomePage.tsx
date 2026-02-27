@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { Card, CardContent } from '../components/ui/Card';
 import { Package, AlertTriangle, Activity, Quote, ChefHat } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 const MOTIVATIONAL_MESSAGES = [
   "¡Cada plato es una sonrisa que servimos al mundo!",
@@ -20,6 +22,7 @@ const MOTIVATIONAL_MESSAGES = [
 export default function HomePage() {
   const { user } = useAuth();
   const { items, movements } = useInventory();
+  const { appLogo } = useUI();
 
   const lowStockItems = items.filter(i => i.quantity <= i.minStock);
 
@@ -28,6 +31,15 @@ export default function HomePage() {
     const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
     return MOTIVATIONAL_MESSAGES[dayOfYear % MOTIVATIONAL_MESSAGES.length];
   }, []);
+
+  const renderLogo = (iconClassName: string, imageClassName: string = "w-32 h-32 object-cover rounded-full opacity-20") => {
+    if (appLogo.type === 'custom') {
+      return <img src={appLogo.value} alt="Logo" className={imageClassName} />;
+    }
+    // @ts-ignore
+    const Icon = LucideIcons[appLogo.value] || ChefHat;
+    return <Icon className={iconClassName} />;
+  };
 
   return (
     <div className="space-y-8">
@@ -42,7 +54,7 @@ export default function HomePage() {
       <div className="max-w-3xl mx-auto">
         <Card className="bg-gradient-to-br from-tuplato to-tuplato-dark text-white shadow-xl border-0 overflow-hidden relative">
           <div className="absolute top-0 right-0 p-8 opacity-10">
-            <ChefHat className="w-32 h-32" />
+            {renderLogo("w-32 h-32")}
           </div>
           <CardContent className="p-10 flex flex-col items-center text-center relative z-10">
             <div className="bg-white/20 p-4 rounded-full mb-6 backdrop-blur-sm">

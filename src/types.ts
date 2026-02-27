@@ -12,6 +12,8 @@ export interface InventoryItem {
   minStock: number;
   location: string;
   image?: string;
+  department?: string;
+  unit?: string;
 }
 
 export type MovementType = 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'CREACION' | 'ELIMINACION';
@@ -27,4 +29,21 @@ export interface Movement {
   date: string;
   user: string;
   reason?: string;
+  department?: string;
+  unit?: string;
+}
+
+export type TipCurrency = 'USD' | 'BS';
+export type TipMethod = 'EFECTIVO' | 'PAGO_MOVIL' | 'PUNTO_VENTA' | 'ZELLE' | 'OTRO';
+export type TipStatus = 'PENDIENTE' | 'LIQUIDADA';
+
+export interface Tip {
+  id: string;
+  amount: number;
+  currency: TipCurrency;
+  method: TipMethod;
+  reference?: string;
+  date: string;
+  user: string;
+  status: TipStatus;
 }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { InventoryItem, Movement, MovementType } from '../types';
 import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
 
 interface InventoryContextType {
   items: InventoryItem[];
@@ -73,7 +74,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => [...prev, newItem]);
     
     // Registrar movimiento de creación
-    logMovement(newItem.id, newItem.name, 'CREACION', newItem.quantity, 0, newItem.quantity, 'Inventario inicial');
+    logMovement(newItem.id, newItem.name, 'CREACION', newItem.quantity, 0, newItem.quantity, 'Inventario inicial', newItem.department, newItem.unit);
+    toast.success(`Producto "${newItem.name}" agregado con éxito`);
   };
 
   const updateItem = (id: string, updates: Partial<InventoryItem>) => {
@@ -83,13 +85,15 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       }
       return item;
     }));
+    toast.success('Producto actualizado correctamente');
   };
 
   const deleteItem = (id: string) => {
     const item = items.find(i => i.id === id);
     if (item) {
-      logMovement(id, item.name, 'ELIMINACION', item.quantity, item.quantity, 0, 'Eliminado del sistema');
+      logMovement(id, item.name, 'ELIMINACION', item.quantity, item.quantity, 0, 'Eliminado del sistema', item.department, item.unit);
       setItems(prev => prev.filter(i => i.id !== id));
+      toast.success(`Producto "${item.name}" eliminado`);
     }
   };
 
@@ -107,10 +111,14 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Actualizar item
-    updateItem(itemId, { quantity: newStock });
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newStock } : i));
 
     // Registrar en historial
-    logMovement(itemId, item.name, type, Math.abs(newStock - item.quantity), item.quantity, newStock, reason);
+    logMovement(itemId, item.name, type, Math.abs(newStock - item.quantity), item.quantity, newStock, reason, item.department, item.unit);
+    
+    if (type === 'ENTRADA') toast.success(`Entrada de ${quantity} ${item.unit || 'unidades'} registrada`);
+    if (type === 'SALIDA') toast.success(`Salida de ${quantity} ${item.unit || 'unidades'} registrada`);
+    if (type === 'AJUSTE') toast.success(`Stock ajustado a ${quantity} ${item.unit || 'unidades'}`);
   };
 
   const logMovement = (
@@ -120,7 +128,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     quantity: number, 
     previousStock: number, 
     newStock: number, 
-    reason?: string
+    reason?: string,
+    department?: string,
+    unit?: string
   ) => {
     const newMovement: Movement = {
       id: crypto.randomUUID(),
@@ -132,7 +142,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       newStock,
       date: new Date().toISOString(),
       user: user?.username || 'Desconocido',
-      reason
+      reason,
+      department,
+      unit
     };
     setMovements(prev => [newMovement, ...prev]);
   };
