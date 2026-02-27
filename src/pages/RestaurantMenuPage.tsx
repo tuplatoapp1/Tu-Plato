@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle } from 'lucide-react';
+import QRCode from 'react-qr-code';
+import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -54,7 +55,8 @@ export default function RestaurantMenuPage() {
     title: '',
     subtitle: '',
     image: '',
-    color: 'from-purple-600 to-blue-600'
+    color: 'from-purple-600 to-blue-600',
+    overlayEnabled: true
   });
 
   // Categories & Tags Management State
@@ -106,7 +108,7 @@ export default function RestaurantMenuPage() {
     return matchesCategory && matchesSearch;
   });
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'offer' | 'menuItem') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'offer' | 'menuItem' | 'category' | 'tag') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -126,6 +128,10 @@ export default function RestaurantMenuPage() {
         }
       } else if (type === 'menuItem') {
         setEditingItem(prev => prev ? ({ ...prev, image: compressed }) : null);
+      } else if (type === 'category') {
+        setEditingCategory(prev => prev ? ({ ...prev, icon: compressed }) : null);
+      } else if (type === 'tag') {
+        setEditingTag(prev => prev ? ({ ...prev, icon: compressed }) : null);
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -314,7 +320,7 @@ export default function RestaurantMenuPage() {
                 <Utensils className={`w-4 h-4 ${activeCategory === 'all' ? 'text-white' : 'text-gray-400'}`} />
                 Todo
               </button>
-              {categories.map((cat) => (
+                  {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
@@ -324,8 +330,12 @@ export default function RestaurantMenuPage() {
                       : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  {/* @ts-ignore */}
-                  {React.createElement(LucideIcons[cat.icon] || Utensils, { className: `w-4 h-4 ${activeCategory === cat.id ? 'text-white' : 'text-gray-400'}` })}
+                  {cat.icon.startsWith('data:') || cat.icon.startsWith('http') ? (
+                    <img src={cat.icon} alt={cat.label} className="w-4 h-4 object-cover rounded-sm" />
+                  ) : (
+                    /* @ts-ignore */
+                    React.createElement(LucideIcons[cat.icon] || Utensils, { className: `w-4 h-4 ${activeCategory === cat.id ? 'text-white' : 'text-gray-400'}` })
+                  )}
                   {cat.label}
                 </button>
               ))}
@@ -689,7 +699,7 @@ export default function RestaurantMenuPage() {
                     placeholder="Plantilla del mensaje..."
                     className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Variables disponibles: {'{restaurantName}'}, {'{customerName}'}, {'{customerPhone}'}, {'{orderItems}'}, {'{totalPrice}'}</p>
+                  <p className="text-xs text-gray-500 mt-1">Variables disponibles: {'{restaurantName}'}, {'{customerName}'}, {'{customerPhone}'}, {'{address}'}, {'{mapLink}'}, {'{orderItems}'}, {'{totalPrice}'}</p>
                 </div>
               </div>
 
@@ -820,20 +830,24 @@ export default function RestaurantMenuPage() {
                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                       <img src={offer.image} alt={offer.title} className="w-full h-full object-cover" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-16">
                       <h4 className="font-bold text-gray-900 truncate">{offer.title}</h4>
                       <p className="text-sm text-gray-500 line-clamp-2">{offer.subtitle}</p>
                     </div>
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 flex gap-1">
                       <button 
                         onClick={() => openEditOfferModal(offer)}
-                        className="p-1.5 bg-white rounded-full shadow-sm text-gray-400 hover:text-tuplato"
+                        className="p-1.5 bg-white rounded-full shadow-sm text-gray-400 hover:text-tuplato border border-gray-100"
+                        title="Editar Oferta"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => removeOffer(offer.id)}
-                        className="p-1.5 bg-white rounded-full shadow-sm text-gray-400 hover:text-red-500"
+                        onClick={() => {
+                          if (confirm('¿Estás seguro de eliminar esta oferta?')) removeOffer(offer.id);
+                        }}
+                        className="p-1.5 bg-white rounded-full shadow-sm text-gray-400 hover:text-red-500 border border-gray-100"
+                        title="Eliminar Oferta"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -897,6 +911,46 @@ export default function RestaurantMenuPage() {
             </div>
           </div>
 
+          {/* Share Menu Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden md:col-span-2 mt-8">
+            <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
+              <div className="bg-tuplato/10 p-2 rounded-lg">
+                <Share2 className="w-5 h-5 text-tuplato" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Compartir Menú</h2>
+            </div>
+            <div className="p-6 flex flex-col md:flex-row gap-8 items-center">
+              <div className="flex-1 w-full space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Enlace del Menú Público</label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={`${window.location.origin}/public-menu`} 
+                      readOnly 
+                      className="bg-gray-50 text-gray-500"
+                    />
+                    <Button onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/public-menu`);
+                      alert('Enlace copiado al portapapeles');
+                    }}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                  <p className="font-bold mb-1">💡 Tip:</p>
+                  Comparte este enlace en tus redes sociales (Instagram Bio, Facebook) o envíalo por WhatsApp a tus clientes.
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                <div className="bg-white p-2">
+                  <QRCode value={`${window.location.origin}/public-menu`} size={150} />
+                </div>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Escanea para ver el menú</span>
+              </div>
+            </div>
+          </div>
+
           {/* Add Offer Modal */}
           <AnimatePresence>
             {isAddingOffer && (
@@ -941,7 +995,13 @@ export default function RestaurantMenuPage() {
                         />
                         <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:bg-gray-50 transition-colors">
                           {newOffer.image ? (
-                            <img src={newOffer.image} alt="Preview" className="h-32 w-full object-cover rounded-lg mx-auto" />
+                            <div className="relative h-32 w-full rounded-lg overflow-hidden mx-auto">
+                              <img src={newOffer.image} alt="Preview" className="h-full w-full object-cover" />
+                              {newOffer.overlayEnabled && (
+                                <div className={`absolute inset-0 bg-gradient-to-t ${newOffer.color} mix-blend-multiply opacity-60`} />
+                              )}
+                              <div className="absolute bottom-2 left-2 text-white text-xs font-bold drop-shadow-md">Vista Previa</div>
+                            </div>
                           ) : (
                             <div className="py-4 text-gray-400">
                               <ImageIcon className="w-8 h-8 mx-auto mb-2" />
@@ -949,6 +1009,34 @@ export default function RestaurantMenuPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sombra / Color</label>
+                        <select 
+                          value={newOffer.color}
+                          onChange={(e) => setNewOffer(prev => ({ ...prev, color: e.target.value }))}
+                          disabled={!newOffer.overlayEnabled}
+                          className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          <option value="from-purple-600 to-blue-600">Morado - Azul</option>
+                          <option value="from-orange-600 to-red-600">Naranja - Rojo</option>
+                          <option value="from-green-600 to-emerald-600">Verde - Esmeralda</option>
+                          <option value="from-gray-900 to-black">Negro (Oscuro)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center h-full pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={newOffer.overlayEnabled !== false}
+                            onChange={(e) => setNewOffer(prev => ({ ...prev, overlayEnabled: e.target.checked }))}
+                            className="w-4 h-4 text-tuplato rounded border-gray-300 focus:ring-tuplato"
+                          />
+                          <span className="text-sm text-gray-700">Activar Sombra de Color</span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -1007,7 +1095,13 @@ export default function RestaurantMenuPage() {
                         />
                         <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:bg-gray-50 transition-colors">
                           {editingOffer.image ? (
-                            <img src={editingOffer.image} alt="Preview" className="h-32 w-full object-cover rounded-lg mx-auto" />
+                            <div className="relative h-32 w-full rounded-lg overflow-hidden mx-auto">
+                              <img src={editingOffer.image} alt="Preview" className="h-full w-full object-cover" />
+                              {editingOffer.overlayEnabled !== false && (
+                                <div className={`absolute inset-0 bg-gradient-to-t ${editingOffer.color} mix-blend-multiply opacity-60`} />
+                              )}
+                              <div className="absolute bottom-2 left-2 text-white text-xs font-bold drop-shadow-md">Vista Previa</div>
+                            </div>
                           ) : (
                             <div className="py-4 text-gray-400">
                               <ImageIcon className="w-8 h-8 mx-auto mb-2" />
@@ -1015,6 +1109,34 @@ export default function RestaurantMenuPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sombra / Color</label>
+                        <select 
+                          value={editingOffer.color}
+                          onChange={(e) => setEditingOffer(prev => prev ? ({ ...prev, color: e.target.value }) : null)}
+                          disabled={editingOffer.overlayEnabled === false}
+                          className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          <option value="from-purple-600 to-blue-600">Morado - Azul</option>
+                          <option value="from-orange-600 to-red-600">Naranja - Rojo</option>
+                          <option value="from-green-600 to-emerald-600">Verde - Esmeralda</option>
+                          <option value="from-gray-900 to-black">Negro (Oscuro)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center h-full pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={editingOffer.overlayEnabled !== false}
+                            onChange={(e) => setEditingOffer(prev => prev ? ({ ...prev, overlayEnabled: e.target.checked }) : null)}
+                            className="w-4 h-4 text-tuplato rounded border-gray-300 focus:ring-tuplato"
+                          />
+                          <span className="text-sm text-gray-700">Activar Sombra de Color</span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -1028,242 +1150,348 @@ export default function RestaurantMenuPage() {
               </div>
             )}
           </AnimatePresence>
-
-          {/* Category Management Modal */}
-          <AnimatePresence>
-            {isCategoryModalOpen && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-                >
-                  <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Gestionar Categorías</h3>
-                    <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex border-b border-gray-100">
-                    <button 
-                      onClick={() => setManageTab('create')}
-                      className={`flex-1 py-3 text-sm font-medium ${manageTab === 'create' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Crear / Editar
-                    </button>
-                    <button 
-                      onClick={() => setManageTab('edit')}
-                      className={`flex-1 py-3 text-sm font-medium ${manageTab === 'edit' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Lista de Categorías
-                    </button>
-                  </div>
-
-                  <div className="p-6 overflow-y-auto flex-1">
-                    {manageTab === 'create' ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Categoría</label>
-                          <Input 
-                            value={editingCategory?.label || ''}
-                            onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, label: e.target.value }) : null)}
-                            placeholder="Ej: Sopas"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Icono (Nombre de Lucide Icon)</label>
-                          <Input 
-                            value={editingCategory?.icon || ''}
-                            onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, icon: e.target.value }) : null)}
-                            placeholder="Ej: Soup"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Usa nombres de iconos en inglés (ej: Pizza, Coffee, Beer, etc.)</p>
-                        </div>
-                        <div className="pt-4">
-                          <Button onClick={handleSaveCategory} disabled={!editingCategory?.label} className="w-full">
-                            {editingCategory?.id ? 'Actualizar Categoría' : 'Crear Categoría'}
-                          </Button>
-                          {editingCategory?.id && (
-                            <Button 
-                              variant="secondary" 
-                              onClick={() => {
-                                setEditingCategory({ label: '', icon: 'Utensils' });
-                                setManageTab('create');
-                              }} 
-                              className="w-full mt-2"
-                            >
-                              Cancelar Edición
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {categories.map(cat => (
-                          <div key={cat.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-white p-2 rounded-md shadow-sm">
-                                {/* @ts-ignore */}
-                                {React.createElement(LucideIcons[cat.icon] || Utensils, { className: "w-4 h-4 text-gray-600" })}
-                              </div>
-                              <span className="font-medium">{cat.label}</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <button 
-                                onClick={() => {
-                                  setEditingCategory(cat);
-                                  setManageTab('create');
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-tuplato hover:bg-tuplato/5 rounded-lg"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  if (confirm('¿Eliminar esta categoría?')) removeCategory(cat.id);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/* Tag Management Modal */}
-          <AnimatePresence>
-            {isTagModalOpen && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-                >
-                  <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Gestionar Etiquetas</h3>
-                    <button onClick={() => setIsTagModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex border-b border-gray-100">
-                    <button 
-                      onClick={() => setManageTab('create')}
-                      className={`flex-1 py-3 text-sm font-medium ${manageTab === 'create' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Crear / Editar
-                    </button>
-                    <button 
-                      onClick={() => setManageTab('edit')}
-                      className={`flex-1 py-3 text-sm font-medium ${manageTab === 'edit' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Lista de Etiquetas
-                    </button>
-                  </div>
-
-                  <div className="p-6 overflow-y-auto flex-1">
-                    {manageTab === 'create' ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Etiqueta</label>
-                          <Input 
-                            value={editingTag?.label || ''}
-                            onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, label: e.target.value }) : null)}
-                            placeholder="Ej: Sin Gluten"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Icono (Nombre de Lucide Icon)</label>
-                          <Input 
-                            value={editingTag?.icon || ''}
-                            onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, icon: e.target.value }) : null)}
-                            placeholder="Ej: WheatOff"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                          <select 
-                            value={editingTag?.color || 'blue'}
-                            onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, color: e.target.value }) : null)}
-                            className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="red">Rojo</option>
-                            <option value="green">Verde</option>
-                            <option value="blue">Azul</option>
-                            <option value="yellow">Amarillo</option>
-                            <option value="purple">Morado</option>
-                            <option value="gray">Gris</option>
-                          </select>
-                        </div>
-                        <div className="pt-4">
-                          <Button onClick={handleSaveTag} disabled={!editingTag?.label} className="w-full">
-                            {editingTag?.id ? 'Actualizar Etiqueta' : 'Crear Etiqueta'}
-                          </Button>
-                          {editingTag?.id && (
-                            <Button 
-                              variant="secondary" 
-                              onClick={() => {
-                                setEditingTag({ label: '', icon: 'Tag', color: 'blue' });
-                                setManageTab('create');
-                              }} 
-                              className="w-full mt-2"
-                            >
-                              Cancelar Edición
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {tags.map(tag => (
-                          <div key={tag.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-${tag.color}-100 text-${tag.color}-700 flex items-center gap-1`}>
-                                {/* @ts-ignore */}
-                                {React.createElement(LucideIcons[tag.icon] || LucideIcons.Tag, { className: "w-3 h-3" })}
-                                {tag.label}
-                              </span>
-                            </div>
-                            <div className="flex gap-1">
-                              <button 
-                                onClick={() => {
-                                  setEditingTag(tag);
-                                  setManageTab('create');
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-tuplato hover:bg-tuplato/5 rounded-lg"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  if (confirm('¿Eliminar esta etiqueta?')) removeTag(tag.id);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
         </div>
       )}
+
+      {/* Category Management Modal */}
+      <AnimatePresence>
+        {isCategoryModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 className="font-bold text-lg">Gestionar Categorías</h3>
+                <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex border-b border-gray-100">
+                <button 
+                  onClick={() => setManageTab('create')}
+                  className={`flex-1 py-3 text-sm font-medium ${manageTab === 'create' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Crear / Editar
+                </button>
+                <button 
+                  onClick={() => setManageTab('edit')}
+                  className={`flex-1 py-3 text-sm font-medium ${manageTab === 'edit' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Lista de Categorías
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1">
+                {manageTab === 'create' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Categoría</label>
+                      <Input 
+                        value={editingCategory?.label || ''}
+                        onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, label: e.target.value }) : null)}
+                        placeholder="Ej: Sopas"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Icono de Categoría</label>
+                      <div className="flex gap-4 items-start">
+                        <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200 overflow-hidden shrink-0">
+                          {editingCategory?.icon && (editingCategory.icon.startsWith('data:') || editingCategory.icon.startsWith('http')) ? (
+                            <img src={editingCategory.icon} alt="Icon" className="w-full h-full object-cover" />
+                          ) : (
+                            // @ts-ignore
+                            React.createElement(LucideIcons[editingCategory?.icon] || Utensils, { className: "w-8 h-8 text-gray-400" })
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-3">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant={!(editingCategory?.icon?.startsWith('data:') || editingCategory?.icon?.startsWith('http')) ? 'primary' : 'secondary'}
+                              onClick={() => setEditingCategory(prev => prev ? ({ ...prev, icon: 'Utensils' }) : null)}
+                              className="flex-1 text-xs h-8"
+                              type="button"
+                            >
+                              <Type className="w-3 h-3 mr-1" /> Icono
+                            </Button>
+                            <Button 
+                              variant={(editingCategory?.icon?.startsWith('data:') || editingCategory?.icon?.startsWith('http')) ? 'primary' : 'secondary'}
+                              onClick={() => {
+                                // Trigger file input click via ref or just show the input
+                              }}
+                              className="flex-1 text-xs h-8"
+                              type="button"
+                            >
+                              <ImageIcon className="w-3 h-3 mr-1" /> Imagen
+                            </Button>
+                          </div>
+                          
+                          {!(editingCategory?.icon?.startsWith('data:') || editingCategory?.icon?.startsWith('http')) ? (
+                            <div>
+                              <Input 
+                                value={editingCategory?.icon || ''}
+                                onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, icon: e.target.value }) : null)}
+                                placeholder="Ej: Soup, Pizza, Coffee"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Usa nombres de iconos en inglés (Lucide Icons)</p>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={(e) => handleImageUpload(e, 'category')}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                              <Button variant="secondary" className="w-full h-10" type="button">
+                                <Upload className="w-4 h-4 mr-2" /> Subir Imagen
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-4">
+                      <Button onClick={handleSaveCategory} disabled={!editingCategory?.label} className="w-full">
+                        {editingCategory?.id ? 'Actualizar Categoría' : 'Crear Categoría'}
+                      </Button>
+                      {editingCategory?.id && (
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => {
+                            setEditingCategory({ label: '', icon: 'Utensils' });
+                            setManageTab('create');
+                          }} 
+                          className="w-full mt-2"
+                        >
+                          Cancelar Edición
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {categories.map(cat => (
+                      <div key={cat.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-white p-2 rounded-md shadow-sm w-8 h-8 flex items-center justify-center overflow-hidden">
+                            {cat.icon.startsWith('data:') || cat.icon.startsWith('http') ? (
+                              <img src={cat.icon} alt={cat.label} className="w-full h-full object-cover" />
+                            ) : (
+                              /* @ts-ignore */
+                              React.createElement(LucideIcons[cat.icon] || Utensils, { className: "w-4 h-4 text-gray-600" })
+                            )}
+                          </div>
+                          <span className="font-medium">{cat.label}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => {
+                              setEditingCategory(cat);
+                              setManageTab('create');
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-tuplato hover:bg-tuplato/5 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm('¿Eliminar esta categoría?')) removeCategory(cat.id);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Tag Management Modal */}
+      <AnimatePresence>
+        {isTagModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 className="font-bold text-lg">Gestionar Etiquetas</h3>
+                <button onClick={() => setIsTagModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex border-b border-gray-100">
+                <button 
+                  onClick={() => setManageTab('create')}
+                  className={`flex-1 py-3 text-sm font-medium ${manageTab === 'create' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Crear / Editar
+                </button>
+                <button 
+                  onClick={() => setManageTab('edit')}
+                  className={`flex-1 py-3 text-sm font-medium ${manageTab === 'edit' ? 'text-tuplato border-b-2 border-tuplato' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Lista de Etiquetas
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1">
+                {manageTab === 'create' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Etiqueta</label>
+                      <Input 
+                        value={editingTag?.label || ''}
+                        onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, label: e.target.value }) : null)}
+                        placeholder="Ej: Sin Gluten"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Icono de Etiqueta</label>
+                      <div className="flex gap-4 items-start">
+                        <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200 overflow-hidden shrink-0">
+                          {editingTag?.icon && (editingTag.icon.startsWith('data:') || editingTag.icon.startsWith('http')) ? (
+                            <img src={editingTag.icon} alt="Icon" className="w-full h-full object-cover" />
+                          ) : (
+                            // @ts-ignore
+                            React.createElement(LucideIcons[editingTag?.icon] || LucideIcons.Tag, { className: "w-8 h-8 text-gray-400" })
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-3">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant={!(editingTag?.icon?.startsWith('data:') || editingTag?.icon?.startsWith('http')) ? 'primary' : 'secondary'}
+                              onClick={() => setEditingTag(prev => prev ? ({ ...prev, icon: 'Tag' }) : null)}
+                              className="flex-1 text-xs h-8"
+                              type="button"
+                            >
+                              <Type className="w-3 h-3 mr-1" /> Icono
+                            </Button>
+                            <Button 
+                              variant={(editingTag?.icon?.startsWith('data:') || editingTag?.icon?.startsWith('http')) ? 'primary' : 'secondary'}
+                              onClick={() => {
+                                // Trigger file input click via ref or just show the input
+                              }}
+                              className="flex-1 text-xs h-8"
+                              type="button"
+                            >
+                              <ImageIcon className="w-3 h-3 mr-1" /> Imagen
+                            </Button>
+                          </div>
+                          
+                          {!(editingTag?.icon?.startsWith('data:') || editingTag?.icon?.startsWith('http')) ? (
+                            <div>
+                              <Input 
+                                value={editingTag?.icon || ''}
+                                onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, icon: e.target.value }) : null)}
+                                placeholder="Ej: WheatOff, Flame, Leaf"
+                              />
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={(e) => handleImageUpload(e, 'tag')}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                              <Button variant="secondary" className="w-full h-10" type="button">
+                                <Upload className="w-4 h-4 mr-2" /> Subir Imagen
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                      <select 
+                        value={editingTag?.color || 'blue'}
+                        onChange={(e) => setEditingTag(prev => prev ? ({ ...prev, color: e.target.value }) : null)}
+                        className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="red">Rojo</option>
+                        <option value="green">Verde</option>
+                        <option value="blue">Azul</option>
+                        <option value="yellow">Amarillo</option>
+                        <option value="purple">Morado</option>
+                        <option value="gray">Gris</option>
+                      </select>
+                    </div>
+                    <div className="pt-4">
+                      <Button onClick={handleSaveTag} disabled={!editingTag?.label} className="w-full">
+                        {editingTag?.id ? 'Actualizar Etiqueta' : 'Crear Etiqueta'}
+                      </Button>
+                      {editingTag?.id && (
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => {
+                            setEditingTag({ label: '', icon: 'Tag', color: 'blue' });
+                            setManageTab('create');
+                          }} 
+                          className="w-full mt-2"
+                        >
+                          Cancelar Edición
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {tags.map(tag => (
+                      <div key={tag.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-${tag.color}-100 text-${tag.color}-700 flex items-center gap-1`}>
+                            {tag.icon.startsWith('data:') || tag.icon.startsWith('http') ? (
+                              <img src={tag.icon} alt={tag.label} className="w-3 h-3 object-cover rounded-sm" />
+                            ) : (
+                              /* @ts-ignore */
+                              React.createElement(LucideIcons[tag.icon] || LucideIcons.Tag, { className: "w-3 h-3" })
+                            )}
+                            {tag.label}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => {
+                              setEditingTag(tag);
+                              setManageTab('create');
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-tuplato hover:bg-tuplato/5 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm('¿Eliminar esta etiqueta?')) removeTag(tag.id);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

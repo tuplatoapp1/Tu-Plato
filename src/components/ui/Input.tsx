@@ -12,6 +12,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   required?: boolean;
   min?: string | number;
   step?: string | number;
+  readOnly?: boolean;
 }
 
 export function Input({ className, label, error, ...props }: InputProps) {

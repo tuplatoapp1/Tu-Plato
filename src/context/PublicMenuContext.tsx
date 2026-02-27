@@ -8,6 +8,7 @@ export interface Offer {
   subtitle: string;
   image: string;
   color: string;
+  overlayEnabled?: boolean;
 }
 
 export interface ScheduleItem {
@@ -97,7 +98,7 @@ const DEFAULT_BRANDING: Branding = {
   restaurantName: 'Tu Plato',
   address: 'Av. Principal 123, Ciudad',
   whatsappNumber: '',
-  whatsappMessageTemplate: '*Nuevo Pedido - {restaurantName}*\n\n*Cliente:* {customerName}\n*Teléfono:* {customerPhone}\n\n*Pedido:*\n{orderItems}\n\n*Total:* ${totalPrice}',
+  whatsappMessageTemplate: '*Nuevo Pedido - {restaurantName}*\n\n*Cliente:* {customerName}\n*Teléfono:* {customerPhone}\n\n*Dirección:* {address}\n{mapLink}\n\n*Pedido:*\n{orderItems}\n\n*Total:* ${totalPrice}',
   socialLinks: {
     instagram: '',
     facebook: '',

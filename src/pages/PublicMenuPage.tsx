@@ -89,6 +89,11 @@ export default function PublicMenuPage() {
       .replace('{orderItems}', orderItemsText)
       .replace('{totalPrice}', totalPrice.toFixed(2));
 
+    // Fallback: If map link exists but wasn't in template, append it
+    if (mapLinkText && !message.includes(locationInfo.mapLink)) {
+      message += `\n\n${mapLinkText}`;
+    }
+
     const encodedText = encodeURIComponent(message);
     
     // Use configured number or default
@@ -188,8 +193,12 @@ export default function PublicMenuPage() {
 
     return (
       <span key={tag.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
-        {/* @ts-ignore */}
-        {React.createElement(LucideIcons[tag.icon] || LucideIcons.Tag, { className: "w-3 h-3" })}
+        {tag.icon && (tag.icon.startsWith('data:') || tag.icon.startsWith('http')) ? (
+          <img src={tag.icon} alt={tag.label} className="w-3 h-3 object-cover rounded-sm" />
+        ) : (
+          /* @ts-ignore */
+          React.createElement(LucideIcons[tag.icon] || LucideIcons.Tag, { className: "w-3 h-3" })
+        )}
         {tag.label}
       </span>
     );
@@ -287,9 +296,11 @@ export default function PublicMenuPage() {
               <img 
                 src={offers[currentOffer].image} 
                 alt={offers[currentOffer].title}
-                className="w-full h-full object-cover opacity-60"
+                className={`w-full h-full object-cover ${offers[currentOffer].overlayEnabled !== false ? 'opacity-60' : ''}`}
               />
-              <div className={`absolute inset-0 bg-gradient-to-t ${offers[currentOffer].color} mix-blend-multiply opacity-60`} />
+              {offers[currentOffer].overlayEnabled !== false && (
+                <div className={`absolute inset-0 bg-gradient-to-t ${offers[currentOffer].color} mix-blend-multiply opacity-60`} />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
             </motion.div>
           </AnimatePresence>
@@ -339,12 +350,18 @@ export default function PublicMenuPage() {
             <button
               key={cat.id}
               onClick={() => scrollToCategory(cat.id)}
-              className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all transform ${
+              className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all transform flex items-center gap-2 ${
                 activeCategory === cat.id
                   ? 'bg-tuplato text-white shadow-lg shadow-tuplato/30 scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
+              {cat.icon && (cat.icon.startsWith('data:') || cat.icon.startsWith('http')) ? (
+                <img src={cat.icon} alt={cat.label} className="w-4 h-4 object-cover rounded-sm" />
+              ) : (
+                /* @ts-ignore */
+                React.createElement(LucideIcons[cat.icon] || Utensils, { className: "w-4 h-4" })
+              )}
               {cat.label}
             </button>
           ))}
