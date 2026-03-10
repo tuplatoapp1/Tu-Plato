@@ -1,6 +1,15 @@
 export interface User {
   username: string;
   name: string;
+  lastName?: string;
+  documentId?: string;
+  phone?: string;
+  email?: string;
+  birthDate?: string;
+  role?: 'admin' | 'customer';
+  points?: number;
+  xp?: number;
+  prizes?: { id: string; name: string; description: string; date: string }[];
 }
 
 export interface InventoryItem {

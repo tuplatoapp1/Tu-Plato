@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles } from 'lucide-react';
+import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles, User, LogOut } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { MENU_ITEMS, MenuItem, MenuTag } from '../data/menu';
 import { usePublicMenu } from '../context/PublicMenuContext';
@@ -20,8 +20,9 @@ interface CartItem {
 }
 
 export default function PublicMenuPage() {
-  const { branding, offers, menuItems, categories, tags, isLoading } = usePublicMenu();
-  const { isAuthenticated } = useAuth();
+  const { branding, offers, menuItems, categories, tags, deliveryZones, isLoading } = usePublicMenu();
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [currentOffer, setCurrentOffer] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || 'entradas');
@@ -30,38 +31,32 @@ export default function PublicMenuPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(0); // 0: Cart, 1: Info, 2: Location
   const [customerInfo, setCustomerInfo] = useState({
-    firstName: '',
-    lastName: '',
-    documentId: '',
-    phone: ''
+    firstName: user?.name || '',
+    lastName: user?.lastName || '',
+    documentId: user?.documentId || '',
+    phone: user?.phone || ''
   });
   const [locationInfo, setLocationInfo] = useState({
-    address: '',
-    mapLink: ''
+    address: ''
   });
-  const [isLocating, setIsLocating] = useState(false);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
+  const [zoneSearch, setZoneSearch] = useState('');
 
-  const handleGetLocation = () => {
-    setIsLocating(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
-          setLocationInfo(prev => ({ ...prev, mapLink: link }));
-          setIsLocating(false);
-        },
-        (error) => {
-          console.error(error);
-          alert('No se pudo obtener la ubicación. Por favor, asegúrate de dar permisos a tu navegador.');
-          setIsLocating(false);
-        }
-      );
-    } else {
-      alert('Tu navegador no soporta geolocalización.');
-      setIsLocating(false);
+  useEffect(() => {
+    if (user) {
+      setCustomerInfo({
+        firstName: user.name || '',
+        lastName: user.lastName || '',
+        documentId: user.documentId || '',
+        phone: user.phone || ''
+      });
     }
-  };
+  }, [user]);
+
+  const selectedZone = deliveryZones.find(z => z.id === selectedZoneId);
+  const filteredZones = deliveryZones.filter(z => 
+    z.name.toLowerCase().includes(zoneSearch.toLowerCase())
+  );
 
   const handleFinishOrder = () => {
     // Use configured template or default
@@ -71,13 +66,16 @@ export default function PublicMenuPage() {
       "*Cédula:* {customerDocumentId}\n" +
       "*Teléfono:* {customerPhone}\n\n" +
       "*Dirección:* {address}\n" +
-      "{mapLink}\n" +
       "\n*Pedido:*\n" +
       "{orderItems}\n" +
-      "\n*Subtotal: ${totalPrice}* (Sin incluir delivery)\n";
+      "\n*Zona de Entrega:* {zoneName}\n" +
+      "*Costo de Envío:* ${shippingCost}\n" +
+      "*Total a Pagar:* ${finalTotal}\n\n" +
+      "Adjuntaré mi ubicación GPS actual en el siguiente mensaje para facilitar la entrega.";
 
     const orderItemsText = cart.map(c => `- ${c.quantity}x ${c.menuItem.name} ($${(c.menuItem.price * c.quantity).toFixed(2)})`).join('\n');
-    const mapLinkText = locationInfo.mapLink ? `*Ubicación Maps:* ${locationInfo.mapLink}` : '';
+    const shippingCost = selectedZone ? selectedZone.price : 0;
+    const finalTotal = totalPrice + shippingCost;
     
     let message = template
       .replace('{restaurantName}', branding.restaurantName)
@@ -85,14 +83,12 @@ export default function PublicMenuPage() {
       .replace('{customerDocumentId}', customerInfo.documentId)
       .replace('{customerPhone}', customerInfo.phone)
       .replace('{address}', locationInfo.address || 'No especificada')
-      .replace('{mapLink}', mapLinkText)
+      .replace('{mapLink}', '')
       .replace('{orderItems}', orderItemsText)
-      .replace('{totalPrice}', totalPrice.toFixed(2));
-
-    // Fallback: If map link exists but wasn't in template, append it
-    if (mapLinkText && !message.includes(locationInfo.mapLink)) {
-      message += `\n\n${mapLinkText}`;
-    }
+      .replace('{totalPrice}', totalPrice.toFixed(2)) // Keep for backward compatibility if template uses it
+      .replace('{zoneName}', selectedZone ? selectedZone.name : 'No seleccionada')
+      .replace('{shippingCost}', shippingCost.toFixed(2))
+      .replace('{finalTotal}', finalTotal.toFixed(2));
 
     const encodedText = encodeURIComponent(message);
     
@@ -107,7 +103,9 @@ export default function PublicMenuPage() {
     setCheckoutStep(0);
     setIsCartOpen(false);
     setCustomerInfo({ firstName: '', lastName: '', documentId: '', phone: '' });
-    setLocationInfo({ address: '', mapLink: '' });
+    setLocationInfo({ address: '' });
+    setSelectedZoneId('');
+    setZoneSearch('');
   };
 
   const addToCart = (item: MenuItem) => {
@@ -248,14 +246,25 @@ export default function PublicMenuPage() {
             )}
             <span className="font-bold text-xl text-white tracking-tight">{branding.restaurantName}</span>
           </div>
-          <button onClick={() => setIsCartOpen(true)} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
-            <ShoppingCart className="w-5 h-5" />
-            {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {totalItems}
-              </span>
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <button onClick={() => navigate('/customer-profile')} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Mi Perfil">
+                <User className="w-5 h-5" />
+              </button>
+            ) : (
+              <button onClick={() => navigate('/customer-auth')} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Iniciar sesión">
+                <User className="w-5 h-5" />
+              </button>
             )}
-          </button>
+            <button onClick={() => setIsCartOpen(true)} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
+              <ShoppingCart className="w-5 h-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -654,36 +663,61 @@ export default function PublicMenuPage() {
 
                 {checkoutStep === 2 && (
                   <div className="space-y-5">
-                    <button 
-                      onClick={handleGetLocation} 
-                      disabled={isLocating} 
-                      className="w-full flex items-center justify-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors font-bold"
-                    >
-                      <Navigation className="w-5 h-5" />
-                      {isLocating ? 'Obteniendo ubicación...' : 'Compartir mi ubicación actual'}
-                    </button>
-                    
-                    {locationInfo.mapLink && (
-                      <div className="text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800/50 flex items-center gap-2 font-medium">
-                        <CheckCircle className="w-5 h-5 text-green-500" /> 
-                        Ubicación obtenida correctamente
-                      </div>
-                    )}
-                    
-                    <div className="relative flex items-center py-2">
-                      <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                      <span className="flex-shrink-0 mx-4 text-gray-400 dark:text-gray-500 text-sm font-medium">O ingresa tu dirección</span>
-                      <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                    </div>
-                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección / Zona</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zona de Entrega</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={zoneSearch}
+                          onChange={(e) => {
+                            setZoneSearch(e.target.value);
+                            if (selectedZoneId) setSelectedZoneId(''); // Clear selection if typing
+                          }}
+                          onFocus={() => {
+                            if (selectedZone) setZoneSearch(''); // Clear input on focus if item selected
+                          }}
+                          placeholder="Buscar tu barrio o zona..."
+                          className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
+                        />
+                        {zoneSearch && !selectedZoneId && (
+                          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            {filteredZones.length > 0 ? (
+                              filteredZones.map(zone => (
+                                <button
+                                  key={zone.id}
+                                  onClick={() => {
+                                    setSelectedZoneId(zone.id);
+                                    setZoneSearch(zone.name);
+                                  }}
+                                  className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center border-b border-gray-50 dark:border-gray-700 last:border-0"
+                                >
+                                  <span className="font-medium text-gray-900 dark:text-white">{zone.name}</span>
+                                  <span className="text-sm font-bold text-green-600 dark:text-green-400">+${zone.price.toFixed(2)}</span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                No encontramos esa zona.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {selectedZone && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 font-bold text-sm">
+                            +${selectedZone.price.toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección / Referencia</label>
                       <textarea 
                         rows={3} 
                         value={locationInfo.address} 
                         onChange={e => setLocationInfo({...locationInfo, address: e.target.value})} 
                         className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none resize-none" 
-                        placeholder="Ej: Barrio Centro, Calle 123, Casa 4. Referencia: Frente al parque." 
+                        placeholder="Ej: Calle 123, Casa 4. Referencia: Frente al parque." 
                       />
                     </div>
                   </div>
@@ -721,14 +755,33 @@ export default function PublicMenuPage() {
                   )}
 
                   {checkoutStep === 2 && (
-                    <button 
-                      onClick={handleFinishOrder}
-                      disabled={!locationInfo.address && !locationInfo.mapLink}
-                      className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-green-600/30 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <Phone className="w-5 h-5" />
-                      Enviar Pedido por WhatsApp
-                    </button>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                        <span>Subtotal</span>
+                        <span>${totalPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                        <span>Envío ({selectedZone ? selectedZone.name : 'Por definir'})</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          {selectedZone ? `+$${selectedZone.price.toFixed(2)}` : '$0.00'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <span className="font-bold text-lg text-gray-900 dark:text-white">Total a Pagar</span>
+                        <span className="font-bold text-2xl text-tuplato">
+                          ${(totalPrice + (selectedZone?.price || 0)).toFixed(2)}
+                        </span>
+                      </div>
+
+                      <button 
+                        onClick={handleFinishOrder}
+                        disabled={!locationInfo.address && !locationInfo.mapLink}
+                        className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-green-600/30 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                      >
+                        <Phone className="w-5 h-5" />
+                        Enviar Pedido por WhatsApp
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

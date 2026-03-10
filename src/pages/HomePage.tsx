@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { Card, CardContent } from '../components/ui/Card';
-import { Package, AlertTriangle, Activity, Quote, ChefHat } from 'lucide-react';
+import { Quote, ChefHat, Sun, Sunset, Moon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
+import { motion } from 'motion/react';
 
 const MOTIVATIONAL_MESSAGES = [
   "¡Cada plato es una sonrisa que servimos al mundo!",
@@ -21,10 +22,13 @@ const MOTIVATIONAL_MESSAGES = [
 
 export default function HomePage() {
   const { user } = useAuth();
-  const { items, movements } = useInventory();
   const { appLogo } = useUI();
+  const [time, setTime] = useState(new Date());
 
-  const lowStockItems = items.filter(i => i.quantity <= i.minStock);
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Select a message based on the day of the year so it changes daily
   const dailyMessage = useMemo(() => {
@@ -41,33 +45,96 @@ export default function HomePage() {
     return <Icon className={iconClassName} />;
   };
 
+  const hour = time.getHours();
+  let greeting = 'Buenas noches';
+  let themeClasses = 'from-indigo-900 via-slate-800 to-slate-900 text-white shadow-indigo-900/20';
+  let TimeIcon = Moon;
+
+  if (hour >= 5 && hour < 12) {
+    greeting = 'Buenos días';
+    themeClasses = 'from-amber-400 via-orange-400 to-orange-500 text-white shadow-orange-500/20';
+    TimeIcon = Sun;
+  } else if (hour >= 12 && hour < 19) {
+    greeting = 'Buenas tardes';
+    themeClasses = 'from-blue-500 via-cyan-500 to-teal-400 text-white shadow-blue-500/20';
+    TimeIcon = Sunset;
+  }
+
+  let h = time.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12; // the hour '0' should be '12'
+  const m = time.getMinutes().toString().padStart(2, '0');
+  const s = time.getSeconds().toString().padStart(2, '0');
+  
+  const timeString = `${h}:${m}`;
+  const secondsString = s;
+  const dateString = time.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
   return (
     <div className="space-y-8">
-      <div className="bg-tuplato/10 p-6 rounded-2xl border border-tuplato/20">
-        <h1 className="text-3xl font-bold text-tuplato">¡Bienvenido, {user?.name}!</h1>
-        <p className="text-tuplato-light mt-2">Resumen de la actividad de Tu Plato.</p>
-      </div>
-
-      {/* KPI Cards removed as requested */}
-      
-      {/* Motivational Message Card */}
-      <div className="max-w-3xl mx-auto">
-        <Card className="bg-gradient-to-br from-tuplato to-tuplato-dark text-white shadow-xl border-0 overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            {renderLogo("w-32 h-32")}
-          </div>
-          <CardContent className="p-10 flex flex-col items-center text-center relative z-10">
-            <div className="bg-white/20 p-4 rounded-full mb-6 backdrop-blur-sm">
-              <Quote className="w-8 h-8 text-white" />
+      {/* Dynamic Greeting & Clock Widget */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className={`relative overflow-hidden rounded-3xl p-8 md:p-10 shadow-2xl bg-gradient-to-br ${themeClasses}`}
+      >
+        {/* Background decorative element */}
+        <div className="absolute -top-20 -right-20 opacity-10 pointer-events-none transform rotate-12 transition-transform duration-1000">
+          <TimeIcon className="w-80 h-80" />
+        </div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <TimeIcon className="w-8 h-8 md:w-10 md:h-10 animate-pulse" />
+              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
+                {greeting}, {user?.name?.split(' ')[0] || 'Equipo'}
+              </h1>
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-tight">
-              "{dailyMessage}"
-            </h2>
-            <p className="text-tuplato-bg/80 font-medium uppercase tracking-widest text-xs">
-              Mensaje del día
+            <p className="text-lg md:text-xl opacity-90 capitalize font-medium flex items-center gap-2">
+              {dateString}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+          
+          <div className="bg-white/20 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20 shadow-inner flex items-center justify-center min-w-[200px]">
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl md:text-6xl font-black tracking-tighter tabular-nums">
+                {timeString}
+              </span>
+              <span className="text-xl md:text-2xl font-bold opacity-80 tabular-nums">
+                :{secondsString} {ampm}
+              </span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Motivational Message Card */}
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card className="bg-gradient-to-br from-tuplato to-tuplato-dark text-white shadow-xl border-0 overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+              {renderLogo("w-40 h-40")}
+            </div>
+            <CardContent className="p-10 md:p-12 flex flex-col items-center text-center relative z-10">
+              <div className="bg-white/20 p-4 rounded-full mb-6 backdrop-blur-sm shadow-inner">
+                <Quote className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl md:text-4xl font-bold mb-6 leading-tight max-w-3xl">
+                "{dailyMessage}"
+              </h2>
+              <p className="text-tuplato-bg/80 font-bold uppercase tracking-widest text-xs md:text-sm">
+                Mensaje del día
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );

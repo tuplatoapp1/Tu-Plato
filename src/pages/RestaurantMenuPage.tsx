@@ -9,6 +9,7 @@ import { Input } from '../components/ui/Input';
 import { MenuItem, MenuTag } from '../data/menu';
 import { usePublicMenu, Offer } from '../context/PublicMenuContext';
 import { compressImage } from '../lib/imageUtils';
+import RewardsConfigTab from '../components/RewardsConfigTab';
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo', icon: Utensils },
@@ -19,7 +20,7 @@ const CATEGORIES = [
 ];
 
 export default function RestaurantMenuPage() {
-  const [activeTab, setActiveTab] = useState<'menu' | 'config'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'config' | 'rewards'>('menu');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -30,6 +31,7 @@ export default function RestaurantMenuPage() {
     menuItems,
     categories,
     tags,
+    deliveryZones,
     updateBranding, 
     addOffer, 
     removeOffer, 
@@ -43,6 +45,8 @@ export default function RestaurantMenuPage() {
     addTag,
     updateTag,
     removeTag,
+    addDeliveryZone,
+    removeDeliveryZone,
     resetConfig 
   } = usePublicMenu();
   
@@ -62,8 +66,10 @@ export default function RestaurantMenuPage() {
   // Categories & Tags Management State
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<{id?: string, label: string, icon: string} | null>(null);
   const [editingTag, setEditingTag] = useState<{id?: string, label: string, icon: string, color: string} | null>(null);
+  const [newZone, setNewZone] = useState({ name: '', price: '' });
   const [manageTab, setManageTab] = useState<'create' | 'edit'>('create'); // For inside modals
 
   // Menu Item Modal State
@@ -272,6 +278,17 @@ export default function RestaurantMenuPage() {
         >
           Configuración Pública
           {activeTab === 'config' && (
+            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-tuplato" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('rewards')}
+          className={`px-4 py-2 font-medium text-sm transition-colors relative ${
+            activeTab === 'rewards' ? 'text-tuplato' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Niveles, XP y Premios
+          {activeTab === 'rewards' && (
             <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-tuplato" />
           )}
         </button>
@@ -580,7 +597,7 @@ export default function RestaurantMenuPage() {
             )}
           </AnimatePresence>
         </>
-      ) : (
+      ) : activeTab === 'config' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Branding Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -805,6 +822,42 @@ export default function RestaurantMenuPage() {
               ))}
               {localBranding.schedule?.length === 0 && (
                 <p className="text-center text-gray-400 text-sm py-4">No hay horarios configurados.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Delivery Zones Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden md:col-span-2">
+            <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-tuplato/10 p-2 rounded-lg">
+                  <MapPin className="w-5 h-5 text-tuplato" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Zonas de Reparto (Lista)</h2>
+              </div>
+              <Button 
+                size="sm" 
+                variant="secondary"
+                onClick={() => {
+                  setNewZone({ name: '', price: '' });
+                  setIsZoneModalOpen(true);
+                }}
+              >
+                <Settings className="w-4 h-4 mr-1" /> Gestionar Zonas
+              </Button>
+            </div>
+            <div className="p-6">
+              {deliveryZones.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-4">No hay zonas configuradas.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {deliveryZones.map((zone) => (
+                    <div key={zone.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <span className="font-medium text-gray-700">{zone.name}</span>
+                      <span className="font-bold text-green-600">${zone.price.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -1151,7 +1204,9 @@ export default function RestaurantMenuPage() {
             )}
           </AnimatePresence>
         </div>
-      )}
+      ) : activeTab === 'rewards' ? (
+        <RewardsConfigTab />
+      ) : null}
 
       {/* Category Management Modal */}
       <AnimatePresence>
@@ -1310,6 +1365,99 @@ export default function RestaurantMenuPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Zone Management Modal */}
+      <AnimatePresence>
+        {isZoneModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 className="font-bold text-lg">Gestionar Zonas de Reparto</h3>
+                <button onClick={() => setIsZoneModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {/* Add New Zone */}
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
+                  <h4 className="font-bold text-sm text-gray-700">Agregar Nueva Zona</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Nombre del Barrio/Zona</label>
+                      <Input 
+                        value={newZone.name}
+                        onChange={(e) => setNewZone(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Ej: San Carlos"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Precio de Envío ($)</label>
+                      <Input 
+                        type="number"
+                        value={newZone.price}
+                        onChange={(e) => setNewZone(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      if (newZone.name && newZone.price) {
+                        addDeliveryZone({ name: newZone.name, price: parseFloat(newZone.price) });
+                        setNewZone({ name: '', price: '' });
+                      }
+                    }}
+                    disabled={!newZone.name || !newZone.price}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Agregar Zona
+                  </Button>
+                </div>
+
+                {/* Zone List */}
+                <div>
+                  <h4 className="font-bold text-sm text-gray-700 mb-3">Zonas Existentes ({deliveryZones.length})</h4>
+                  <div className="space-y-2">
+                    {deliveryZones.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        No hay zonas configuradas. Agrega una arriba.
+                      </div>
+                    ) : (
+                      deliveryZones.map((zone) => (
+                        <div key={zone.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:border-gray-200 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-sm text-gray-900">{zone.name}</div>
+                              <div className="text-xs text-gray-500">Costo de envío: <span className="font-bold text-green-600">${zone.price.toFixed(2)}</span></div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              if (confirm(`¿Eliminar la zona "${zone.name}"?`)) removeDeliveryZone(zone.id);
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>

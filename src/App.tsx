@@ -6,6 +6,7 @@ import { UIProvider } from './context/UIContext';
 import { DepartmentProvider } from './context/DepartmentContext';
 import { PublicMenuProvider } from './context/PublicMenuContext';
 import { TipsProvider } from './context/TipsContext';
+import { RewardsProvider } from './context/RewardsContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -15,6 +16,8 @@ import HomePage from './pages/HomePage';
 import SettingsPage from './pages/SettingsPage';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import PublicMenuPage from './pages/PublicMenuPage';
+import CustomerAuthPage from './pages/CustomerAuthPage';
+import CustomerProfilePage from './pages/CustomerProfilePage';
 import TipsPage from './pages/TipsPage';
 import { Toaster } from 'sonner';
 
@@ -37,24 +40,28 @@ export default function App() {
               <DepartmentProvider>
                 <PublicMenuProvider>
                   <TipsProvider>
-                    <Routes>
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/public-menu" element={<PublicMenuPage />} />
-                      
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <Layout />
-                        </ProtectedRoute>
-                      }>
-                        <Route index element={<HomePage />} />
-                        <Route path="menu" element={<RestaurantMenuPage />} />
-                        <Route path="inventory" element={<InventoryPage />} />
-                        <Route path="inventory/:department" element={<InventoryPage />} />
-                        <Route path="movements" element={<MovementsPage />} />
-                        <Route path="tips" element={<TipsPage />} />
-                        <Route path="settings" element={<SettingsPage />} />
-                      </Route>
-                    </Routes>
+                    <RewardsProvider>
+                      <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/public-menu" element={<PublicMenuPage />} />
+                        <Route path="/customer-auth" element={<CustomerAuthPage />} />
+                        <Route path="/customer-profile" element={<CustomerProfilePage />} />
+                        
+                        <Route path="/" element={
+                          <ProtectedRoute>
+                            <Layout />
+                          </ProtectedRoute>
+                        }>
+                          <Route index element={<HomePage />} />
+                          <Route path="menu" element={<RestaurantMenuPage />} />
+                          <Route path="inventory" element={<InventoryPage />} />
+                          <Route path="inventory/:department" element={<InventoryPage />} />
+                          <Route path="movements" element={<MovementsPage />} />
+                          <Route path="tips" element={<TipsPage />} />
+                          <Route path="settings" element={<SettingsPage />} />
+                        </Route>
+                      </Routes>
+                    </RewardsProvider>
                   </TipsProvider>
                 </PublicMenuProvider>
               </DepartmentProvider>

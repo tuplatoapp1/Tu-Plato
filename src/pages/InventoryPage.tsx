@@ -553,6 +553,8 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
                         <option value="Paquetes">Paquetes</option>
                         <option value="Gramos">Gramos (g)</option>
                         <option value="Mililitros">Mililitros (ml)</option>
+                        <option value="Bultos">Bultos</option>
+                        <option value="Gaveras">Gaveras</option>
                       </select>
                     </div>
                   </div>

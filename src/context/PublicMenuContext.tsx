@@ -45,12 +45,19 @@ export interface Tag {
   color: string;
 }
 
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  price: number;
+}
+
 interface PublicMenuContextType {
   branding: Branding;
   offers: Offer[];
   menuItems: MenuItem[];
   categories: Category[];
   tags: Tag[];
+  deliveryZones: DeliveryZone[];
   isLoading: boolean;
   updateBranding: (branding: Partial<Branding>) => Promise<boolean>;
   addOffer: (offer: Omit<Offer, 'id'>) => Promise<boolean>;
@@ -65,6 +72,9 @@ interface PublicMenuContextType {
   addTag: (tag: Omit<Tag, 'id'>) => Promise<boolean>;
   updateTag: (id: string, tag: Partial<Tag>) => Promise<boolean>;
   removeTag: (id: string) => Promise<boolean>;
+  addDeliveryZone: (zone: Omit<DeliveryZone, 'id'>) => Promise<boolean>;
+  updateDeliveryZone: (id: string, zone: Partial<DeliveryZone>) => Promise<boolean>;
+  removeDeliveryZone: (id: string) => Promise<boolean>;
   resetConfig: () => Promise<void>;
 }
 
@@ -98,7 +108,7 @@ const DEFAULT_BRANDING: Branding = {
   restaurantName: 'Tu Plato',
   address: 'Av. Principal 123, Ciudad',
   whatsappNumber: '',
-  whatsappMessageTemplate: '*Nuevo Pedido - {restaurantName}*\n\n*Cliente:* {customerName}\n*Teléfono:* {customerPhone}\n\n*Dirección:* {address}\n{mapLink}\n\n*Pedido:*\n{orderItems}\n\n*Total:* ${totalPrice}',
+  whatsappMessageTemplate: '*Nuevo Pedido - {restaurantName}*\n\n*Cliente:* {customerName}\n*Teléfono:* {customerPhone}\n\n*Dirección:* {address}\n\n*Pedido:*\n{orderItems}\n\n*Total:* ${totalPrice}',
   socialLinks: {
     instagram: '',
     facebook: '',
@@ -124,6 +134,12 @@ const DEFAULT_TAGS: Tag[] = [
   { id: 'new', label: 'Nuevo', icon: 'Sparkles', color: 'blue' },
 ];
 
+const DEFAULT_DELIVERY_ZONES: DeliveryZone[] = [
+  { id: '1', name: 'San Carlos', price: 2.00 },
+  { id: '2', name: 'Los Samanes', price: 3.00 },
+  { id: '3', name: 'Centro', price: 1.50 },
+];
+
 const PublicMenuContext = createContext<PublicMenuContextType | undefined>(undefined);
 
 // Channel for cross-tab/component communication
@@ -135,6 +151,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(MENU_ITEMS);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>(DEFAULT_DELIVERY_ZONES);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
@@ -144,6 +161,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       const storedMenuItems = await db.get<MenuItem[]>('public_menu_items');
       const storedCategories = await db.get<Category[]>('public_menu_categories');
       const storedTags = await db.get<Tag[]>('public_menu_tags');
+      const storedZones = await db.get<DeliveryZone[]>('public_menu_zones');
 
       if (storedBranding) {
         setBranding(prev => ({ ...DEFAULT_BRANDING, ...storedBranding }));
@@ -159,6 +177,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       }
       if (storedTags) {
         setTags(storedTags);
+      }
+      if (storedZones) {
+        setDeliveryZones(storedZones);
       }
     } catch (error) {
       console.error('Failed to load menu data:', error);
@@ -357,6 +378,46 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const addDeliveryZone = async (zone: Omit<DeliveryZone, 'id'>): Promise<boolean> => {
+    try {
+      const newZone = { ...zone, id: crypto.randomUUID() };
+      const newZones = [...deliveryZones, newZone];
+      await db.set('public_menu_zones', newZones);
+      setDeliveryZones(newZones);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error adding zone:', error);
+      return false;
+    }
+  };
+
+  const updateDeliveryZone = async (id: string, updates: Partial<DeliveryZone>): Promise<boolean> => {
+    try {
+      const newZones = deliveryZones.map(z => z.id === id ? { ...z, ...updates } : z);
+      await db.set('public_menu_zones', newZones);
+      setDeliveryZones(newZones);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating zone:', error);
+      return false;
+    }
+  };
+
+  const removeDeliveryZone = async (id: string): Promise<boolean> => {
+    try {
+      const newZones = deliveryZones.filter(z => z.id !== id);
+      await db.set('public_menu_zones', newZones);
+      setDeliveryZones(newZones);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error removing zone:', error);
+      return false;
+    }
+  };
+
   const resetConfig = async () => {
     try {
       await db.clear();
@@ -365,6 +426,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       setMenuItems(MENU_ITEMS);
       setCategories(DEFAULT_CATEGORIES);
       setTags(DEFAULT_TAGS);
+      setDeliveryZones(DEFAULT_DELIVERY_ZONES);
       notifyUpdates();
     } catch (error) {
       console.error('Error resetting config:', error);
@@ -378,6 +440,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       menuItems,
       categories,
       tags,
+      deliveryZones,
       isLoading, 
       updateBranding, 
       addOffer, 
@@ -392,6 +455,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       addTag,
       updateTag,
       removeTag,
+      addDeliveryZone,
+      updateDeliveryZone,
+      removeDeliveryZone,
       resetConfig
     }}>
       {children}
