@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
-import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy } from 'lucide-react';
+import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy, Trophy } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -258,40 +258,44 @@ export default function RestaurantMenuPage() {
   return (
     <div className="space-y-8 pb-12">
       {/* Tabs Header */}
-      <div className="flex items-center gap-4 border-b border-gray-200 pb-1">
-        <button
-          onClick={() => setActiveTab('menu')}
-          className={`px-4 py-2 font-medium text-sm transition-colors relative ${
-            activeTab === 'menu' ? 'text-tuplato' : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Menú del Restaurante
-          {activeTab === 'menu' && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-tuplato" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('config')}
-          className={`px-4 py-2 font-medium text-sm transition-colors relative ${
-            activeTab === 'config' ? 'text-tuplato' : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Configuración Pública
-          {activeTab === 'config' && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-tuplato" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('rewards')}
-          className={`px-4 py-2 font-medium text-sm transition-colors relative ${
-            activeTab === 'rewards' ? 'text-tuplato' : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Niveles, XP y Premios
-          {activeTab === 'rewards' && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-tuplato" />
-          )}
-        </button>
+      <div className="relative mb-6">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'menu' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Utensils className="w-4 h-4" />
+            Menú del Restaurante
+          </button>
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'config' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Configuración Pública
+          </button>
+          <button
+            onClick={() => setActiveTab('rewards')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'rewards' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Trophy className="w-4 h-4" />
+            Niveles, XP y Premios
+          </button>
+        </div>
+        {/* Gradient fade for scroll indication on mobile */}
+        <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden" />
       </div>
 
       {activeTab === 'menu' ? (
