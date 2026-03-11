@@ -13,6 +13,7 @@ import LoginPage from './pages/LoginPage';
 import InventoryPage from './pages/InventoryPage';
 import MovementsPage from './pages/MovementsPage';
 import HomePage from './pages/HomePage';
+import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import PublicMenuPage from './pages/PublicMenuPage';
@@ -53,6 +54,7 @@ export default function App() {
                           </ProtectedRoute>
                         }>
                           <Route index element={<HomePage />} />
+                          <Route path="dashboard" element={<DashboardPage />} />
                           <Route path="menu" element={<RestaurantMenuPage />} />
                           <Route path="inventory" element={<InventoryPage />} />
                           <Route path="inventory/:department" element={<InventoryPage />} />

@@ -17,11 +17,12 @@ const CATEGORIES = [
 interface CartItem {
   menuItem: MenuItem;
   quantity: number;
+  notes?: string;
 }
 
 export default function PublicMenuPage() {
   const { branding, offers, menuItems, categories, tags, deliveryZones, isLoading } = usePublicMenu();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, updateCustomer } = useAuth();
   const navigate = useNavigate();
   const [currentOffer, setCurrentOffer] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +42,8 @@ export default function PublicMenuPage() {
   });
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [zoneSearch, setZoneSearch] = useState('');
+  const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
+  const zoneDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -52,6 +55,23 @@ export default function PublicMenuPage() {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (zoneDropdownRef.current && !zoneDropdownRef.current.contains(event.target as Node)) {
+        setIsZoneDropdownOpen(false);
+        // If they didn't select a zone but typed something, maybe clear it or leave it
+        if (!selectedZoneId && zoneSearch) {
+          // Optionally clear or keep
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedZoneId, zoneSearch]);
 
   const selectedZone = deliveryZones.find(z => z.id === selectedZoneId);
   const filteredZones = deliveryZones.filter(z => 
@@ -73,7 +93,13 @@ export default function PublicMenuPage() {
       "*Total a Pagar:* ${finalTotal}\n\n" +
       "Adjuntaré mi ubicación GPS actual en el siguiente mensaje para facilitar la entrega.";
 
-    const orderItemsText = cart.map(c => `- ${c.quantity}x ${c.menuItem.name} ($${(c.menuItem.price * c.quantity).toFixed(2)})`).join('\n');
+    const orderItemsText = cart.map(c => {
+      let text = `- ${c.quantity}x ${c.menuItem.name} ($${(c.menuItem.price * c.quantity).toFixed(2)})`;
+      if (c.notes) {
+        text += `\n  *Notas: ${c.notes}*`;
+      }
+      return text;
+    }).join('\n');
     const shippingCost = selectedZone ? selectedZone.price : 0;
     const finalTotal = totalPrice + shippingCost;
     
@@ -92,6 +118,51 @@ export default function PublicMenuPage() {
 
     const encodedText = encodeURIComponent(message);
     
+    // Save order to history if user is logged in
+    if (user) {
+      const newOrder = {
+        id: Date.now().toString(),
+        userId: user.username, // using username as unique ID
+        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
+        date: new Date().toISOString(),
+        items: cart.map(c => ({
+          menuItemId: c.menuItem.id,
+          name: c.menuItem.name,
+          quantity: c.quantity,
+          price: c.menuItem.price,
+          notes: c.notes || ''
+        })),
+        total: finalTotal,
+        zoneId: selectedZoneId,
+        address: locationInfo.address
+      };
+      
+      const existingOrders = JSON.parse(localStorage.getItem('customer_orders') || '[]');
+      localStorage.setItem('customer_orders', JSON.stringify([...existingOrders, newOrder]));
+
+      // Update user XP and Points (1 per $1 spent)
+      const pointsEarned = Math.floor(finalTotal);
+      
+      // We need to update the user in AuthContext and also in the registered_customers list
+      const updatedUser = {
+        ...user,
+        xp: (user.xp || 0) + pointsEarned,
+        points: (user.points || 0) + pointsEarned
+      };
+      
+      // This updates the current session
+      if (updateCustomer) {
+        updateCustomer({ xp: updatedUser.xp, points: updatedUser.points });
+      }
+      
+      // Update in registered_customers list
+      const registeredCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
+      const updatedCustomers = registeredCustomers.map((c: any) => 
+        c.username === user.username ? { ...c, xp: updatedUser.xp, points: updatedUser.points } : c
+      );
+      localStorage.setItem('registered_customers', JSON.stringify(updatedCustomers));
+    }
+
     // Use configured number or default
     const targetNumber = branding.whatsappNumber || '584243556185';
     const waLink = `https://wa.me/${targetNumber}?text=${encodedText}`;
@@ -127,6 +198,10 @@ export default function PublicMenuPage() {
         return c;
       }).filter(c => c.quantity > 0);
     });
+  };
+
+  const updateNotes = (id: string, notes: string) => {
+    setCart(prev => prev.map(c => c.menuItem.id === id ? { ...c, notes } : c));
   };
 
   const removeFromCart = (id: string) => {
@@ -589,27 +664,38 @@ export default function PublicMenuPage() {
                     </div>
                   ) : (
                     cart.map(c => (
-                      <div key={c.menuItem.id} className="flex gap-3 items-center bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm relative pr-10">
-                        <button 
-                          onClick={() => removeFromCart(c.menuItem.id)}
-                          className="absolute top-2 right-2 p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                          title="Eliminar producto"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                        <img src={c.menuItem.image} alt={c.menuItem.name} className="w-16 h-16 object-cover rounded-lg" />
-                        <div className="flex-1">
-                          <h4 className="font-bold text-sm line-clamp-1 pr-2 dark:text-white">{c.menuItem.name}</h4>
-                          <p className="text-tuplato font-bold text-sm">${(c.menuItem.price * c.quantity).toFixed(2)}</p>
+                      <div key={c.menuItem.id} className="flex flex-col gap-2 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm relative">
+                        <div className="flex gap-3 items-center pr-8">
+                          <button 
+                            onClick={() => removeFromCart(c.menuItem.id)}
+                            className="absolute top-2 right-2 p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                            title="Eliminar producto"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          <img src={c.menuItem.image} alt={c.menuItem.name} className="w-16 h-16 object-cover rounded-lg" />
+                          <div className="flex-1">
+                            <h4 className="font-bold text-sm line-clamp-1 pr-2 dark:text-white">{c.menuItem.name}</h4>
+                            <p className="text-tuplato font-bold text-sm">${(c.menuItem.price * c.quantity).toFixed(2)}</p>
+                          </div>
+                          <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
+                            <button onClick={() => updateQuantity(c.menuItem.id, -1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-sm font-bold w-4 text-center dark:text-white">{c.quantity}</span>
+                            <button onClick={() => updateQuantity(c.menuItem.id, 1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
-                          <button onClick={() => updateQuantity(c.menuItem.id, -1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="text-sm font-bold w-4 text-center dark:text-white">{c.quantity}</span>
-                          <button onClick={() => updateQuantity(c.menuItem.id, 1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
-                            <Plus className="w-3 h-3" />
-                          </button>
+                        <div className="mt-1">
+                          <input
+                            type="text"
+                            placeholder="Ej. Sin tomate, extra salsa..."
+                            value={c.notes || ''}
+                            onChange={(e) => updateNotes(c.menuItem.id, e.target.value)}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:ring-1 focus:ring-tuplato outline-none"
+                          />
                         </div>
                       </div>
                     ))
@@ -665,21 +751,37 @@ export default function PublicMenuPage() {
                   <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zona de Entrega</label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={zoneSearch}
-                          onChange={(e) => {
-                            setZoneSearch(e.target.value);
-                            if (selectedZoneId) setSelectedZoneId(''); // Clear selection if typing
-                          }}
-                          onFocus={() => {
-                            if (selectedZone) setZoneSearch(''); // Clear input on focus if item selected
-                          }}
-                          placeholder="Buscar tu barrio o zona..."
-                          className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
-                        />
-                        {zoneSearch && !selectedZoneId && (
+                      <div className="relative" ref={zoneDropdownRef}>
+                        {!isZoneDropdownOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsZoneDropdownOpen(true);
+                              if (selectedZone) setZoneSearch('');
+                            }}
+                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-left text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
+                          >
+                            {selectedZone ? (
+                              <span className="block truncate pr-16">{selectedZone.name}</span>
+                            ) : zoneSearch ? (
+                              <span className="block truncate pr-16">{zoneSearch}</span>
+                            ) : (
+                              <span className="text-gray-400 dark:text-gray-500 block truncate pr-16">Buscar tu barrio o zona...</span>
+                            )}
+                          </button>
+                        ) : (
+                          <input
+                            type="text"
+                            value={zoneSearch}
+                            onChange={(e) => {
+                              setZoneSearch(e.target.value);
+                              if (selectedZoneId) setSelectedZoneId(''); // Clear selection if typing
+                            }}
+                            placeholder="Buscar tu barrio o zona..."
+                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
+                          />
+                        )}
+                        {isZoneDropdownOpen && (
                           <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                             {filteredZones.length > 0 ? (
                               filteredZones.map(zone => (
@@ -688,6 +790,7 @@ export default function PublicMenuPage() {
                                   onClick={() => {
                                     setSelectedZoneId(zone.id);
                                     setZoneSearch(zone.name);
+                                    setIsZoneDropdownOpen(false);
                                   }}
                                   className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center border-b border-gray-50 dark:border-gray-700 last:border-0"
                                 >
@@ -702,8 +805,8 @@ export default function PublicMenuPage() {
                             )}
                           </div>
                         )}
-                        {selectedZone && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 font-bold text-sm">
+                        {selectedZone && !isZoneDropdownOpen && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 font-bold text-sm pointer-events-none">
                             +${selectedZone.price.toFixed(2)}
                           </div>
                         )}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
-import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy, Trophy } from 'lucide-react';
+import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy, Trophy, Users } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -10,6 +10,8 @@ import { MenuItem, MenuTag } from '../data/menu';
 import { usePublicMenu, Offer } from '../context/PublicMenuContext';
 import { compressImage } from '../lib/imageUtils';
 import RewardsConfigTab from '../components/RewardsConfigTab';
+import UserListTab from '../components/UserListTab';
+import DeliveryZonesTab from '../components/DeliveryZonesTab';
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo', icon: Utensils },
@@ -20,7 +22,7 @@ const CATEGORIES = [
 ];
 
 export default function RestaurantMenuPage() {
-  const [activeTab, setActiveTab] = useState<'menu' | 'config' | 'rewards'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'config' | 'delivery' | 'rewards' | 'users'>('menu');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -283,6 +285,17 @@ export default function RestaurantMenuPage() {
             Configuración Pública
           </button>
           <button
+            onClick={() => setActiveTab('delivery')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'delivery' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            Zonas de Entrega
+          </button>
+          <button
             onClick={() => setActiveTab('rewards')}
             className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
               activeTab === 'rewards' 
@@ -292,6 +305,17 @@ export default function RestaurantMenuPage() {
           >
             <Trophy className="w-4 h-4" />
             Niveles, XP y Premios
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'users' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Lista de Usuarios
           </button>
         </div>
         {/* Gradient fade for scroll indication on mobile */}
@@ -1208,8 +1232,12 @@ export default function RestaurantMenuPage() {
             )}
           </AnimatePresence>
         </div>
+      ) : activeTab === 'delivery' ? (
+        <DeliveryZonesTab />
       ) : activeTab === 'rewards' ? (
         <RewardsConfigTab />
+      ) : activeTab === 'users' ? (
+        <UserListTab />
       ) : null}
 
       {/* Category Management Modal */}

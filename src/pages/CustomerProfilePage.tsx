@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRewards } from '../context/RewardsContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { ArrowLeft, Gift, Star, Trophy, User, Mail, Lock, LogOut, CheckCircle, ChevronRight, Edit2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { BurgerMascot } from '../components/BurgerMascot';
 
 export default function CustomerProfilePage() {
   const { user, updateCustomer, logout } = useAuth();
+  const { config } = useRewards();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   
   const [formData, setFormData] = useState({
     email: user?.email || '',
-    password: '' // We don't show the real password, just allow updating it
+    password: '', // We don't show the real password, just allow updating it
+    birthDate: user?.birthDate || ''
   });
 
   // Redirect if not logged in
@@ -26,7 +30,7 @@ export default function CustomerProfilePage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const updates: any = { email: formData.email };
+    const updates: any = { email: formData.email, birthDate: formData.birthDate };
     // In a real app, we'd hash the password or send it to an API
     if (formData.password) {
       // Mock updating password
@@ -34,6 +38,14 @@ export default function CustomerProfilePage() {
     }
     
     updateCustomer(updates);
+    
+    // Also update in registered_customers list
+    const registeredCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
+    const updatedCustomers = registeredCustomers.map((c: any) => 
+      c.username === user.username ? { ...c, ...updates } : c
+    );
+    localStorage.setItem('registered_customers', JSON.stringify(updatedCustomers));
+
     setIsEditing(false);
     toast.success('Datos actualizados correctamente');
   };
@@ -85,19 +97,22 @@ export default function CustomerProfilePage() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center relative"
+          className="text-center relative flex flex-col items-center"
         >
-          <div className="relative inline-block">
-            <div className="w-24 h-24 bg-gradient-to-br from-tuplato to-tuplato-dark rounded-full mx-auto flex items-center justify-center text-white text-3xl font-bold shadow-lg mb-4 border-4 border-white">
-              {user.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-md flex items-center gap-1">
-              <Star className="w-3 h-3 fill-current" />
-              LVL {currentLevel}
-            </div>
+          <div className="mb-10 mt-6">
+            <BurgerMascot 
+              level={currentLevel} 
+              className="scale-125" 
+              customImage={config.customMascots?.[currentLevel]}
+              customVideo={config.customVideos?.[currentLevel]}
+            />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">¡Hola, {user.name}!</h2>
-          <p className="text-gray-500 mt-1">Miembro desde 2026</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">¡Hola, {user.name}!</h2>
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-md flex items-center gap-1.5 mb-2">
+            <Star className="w-3.5 h-3.5 fill-current" />
+            NIVEL {currentLevel}
+          </div>
+          <p className="text-gray-500 text-sm">Miembro desde 2026</p>
         </motion.div>
 
         {/* Level & XP Card */}
@@ -225,6 +240,12 @@ export default function CustomerProfilePage() {
                   required
                 />
                 <Input
+                  label="Fecha de Nacimiento"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                />
+                <Input
                   label="Nueva Contraseña"
                   type="password"
                   placeholder="Dejar en blanco para no cambiar"
@@ -254,6 +275,16 @@ export default function CustomerProfilePage() {
                   <div>
                     <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Correo Electrónico</p>
                     <p className="font-medium text-gray-900">{user.email || 'No especificado'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Fecha de Nacimiento</p>
+                    <p className="font-medium text-gray-900">{user.birthDate ? new Date(user.birthDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada'}</p>
                   </div>
                 </div>
 

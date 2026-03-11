@@ -11,6 +11,8 @@ export interface RewardsConfig {
   xpPerDollar: number;
   xpLevels: number[]; // Array of 10 numbers for XP required per level
   prizes: Prize[];
+  customMascots?: Record<number, string>; // Map level (1-10) to image URL
+  customVideos?: Record<number, string>; // Map level (1-10) to video URL/Base64
 }
 
 interface RewardsContextType {

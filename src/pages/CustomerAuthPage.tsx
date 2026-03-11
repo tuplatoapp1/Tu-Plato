@@ -37,7 +37,8 @@ export default function CustomerAuthPage() {
       });
     } else {
       // Mock register
-      loginCustomer({
+      const newUser = {
+        id: Date.now().toString(),
         username: formData.email,
         name: formData.name,
         lastName: formData.lastName,
@@ -45,8 +46,18 @@ export default function CustomerAuthPage() {
         phone: formData.phone,
         email: formData.email,
         birthDate: formData.birthDate,
-        role: 'customer'
-      });
+        role: 'customer',
+        points: 0,
+        xp: 0,
+        prizes: [],
+        registeredAt: new Date().toISOString()
+      };
+      
+      // Save to registered customers list
+      const existingCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
+      localStorage.setItem('registered_customers', JSON.stringify([...existingCustomers, newUser]));
+      
+      loginCustomer(newUser);
     }
     
     navigate('/public-menu');

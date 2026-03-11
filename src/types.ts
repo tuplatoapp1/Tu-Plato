@@ -1,3 +1,22 @@
+export interface OrderItem {
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  notes?: string;
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  customerName: string;
+  date: string;
+  items: OrderItem[];
+  total: number;
+  zoneId?: string;
+  address?: string;
+}
+
 export interface User {
   username: string;
   name: string;
