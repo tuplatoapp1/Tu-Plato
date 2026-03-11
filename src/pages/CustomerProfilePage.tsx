@@ -97,9 +97,9 @@ export default function CustomerProfilePage() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center relative flex flex-col items-center pt-0"
+          className="text-center relative flex flex-col items-center pt-0 -mt-7"
         >
-          <div className="w-full aspect-square flex items-center justify-center overflow-hidden">
+          <div className="w-full aspect-square flex items-center justify-center">
             <BurgerMascot 
               level={currentLevel} 
               className="w-full h-full"
