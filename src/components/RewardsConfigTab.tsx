@@ -147,10 +147,28 @@ export default function RewardsConfigTab() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          // Comprimir a WebP con 80% de calidad
+          
+          // --- Algoritmo de eliminación de fondo blanco ---
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+          
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Si el píxel es muy cercano al blanco (umbral de 240)
+            if (r > 240 && g > 240 && b > 240) {
+              data[i + 3] = 0; // Hacerlo transparente
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+          // -----------------------------------------------
+
+          // Comprimir a WebP con soporte de transparencia
           const compressedDataUrl = canvas.toDataURL('image/webp', 0.8);
           setMascotImageUrl(compressedDataUrl);
-          toast.success('Imagen redimensionada y comprimida exitosamente');
+          toast.success('Imagen procesada: Fondo blanco eliminado y redimensionada');
         }
       };
     };
@@ -334,9 +352,10 @@ export default function RewardsConfigTab() {
                     </button>
                   </div>
                   
-                  <div className="h-24 flex items-center justify-center mb-3 transform scale-75 origin-center">
+                  <div className="h-28 flex items-center justify-center mb-3 transform scale-[0.35] origin-center">
                     <BurgerMascot 
                       level={level} 
+                      className="w-64 h-64"
                       customImage={customImage} 
                       customVideo={customVideo}
                     />
@@ -493,9 +512,10 @@ export default function RewardsConfigTab() {
 
                 <div className="mt-4 border border-gray-100 rounded-xl p-4 flex flex-col items-center justify-center bg-gray-50">
                   <span className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Vista Previa</span>
-                  <div className="h-32 flex items-center justify-center">
+                  <div className="h-48 flex items-center justify-center">
                     <BurgerMascot 
                       level={editingMascotLevel} 
+                      className="w-64 h-64"
                       customImage={mascotImageUrl.trim() !== '' ? mascotImageUrl : undefined} 
                       customVideo={mascotVideoUrl.trim() !== '' ? mascotVideoUrl : undefined}
                     />

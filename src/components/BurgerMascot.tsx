@@ -4,10 +4,11 @@ import { motion } from 'motion/react';
 interface BurgerMascotProps {
   level: number;
   className?: string;
+  customImage?: string;
   customVideo?: string;
 }
 
-export function BurgerMascot({ level, className = '', customVideo }: BurgerMascotProps) {
+export function BurgerMascot({ level, className = '', customImage, customVideo }: BurgerMascotProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isMid = level >= 3 && level < 6;
   const isVip = level >= 6;
@@ -27,35 +28,47 @@ export function BurgerMascot({ level, className = '', customVideo }: BurgerMasco
   }, [videoSrc]);
 
   return (
-    <div className={`relative flex items-center justify-center ${className} w-64 h-64`}>
-      {/* Video Mascot (Option 3) */}
-      <div className="relative w-full h-full flex items-center justify-center">
+    <div className={`relative flex items-center justify-center ${className}`}>
+      {/* Priority 1: Custom Video */}
+      {customVideo ? (
         <video
           ref={videoRef}
-          key={videoSrc}
+          key={customVideo}
           autoPlay
           loop
           muted
           playsInline
           className="relative z-20 w-full h-full object-contain pointer-events-none"
-          style={{ filter: 'drop-shadow(0 0 20px rgba(255, 143, 0, 0.4))' }}
         >
-          <source src={videoSrc} type="video/webm" />
-          {/* Fallback to Advanced SVG if video fails or doesn't exist yet */}
-          <MascotFallback level={level} />
+          <source src={customVideo} type="video/webm" />
         </video>
-      </div>
-
-      {/* Ground Glow (Always present for atmosphere) */}
-      <motion.div 
-        className="absolute -bottom-4 w-32 h-8 rounded-full blur-xl"
-        style={{ 
-          background: `radial-gradient(circle, ${isVip ? '#ff6d00' : '#ff8f00'} 0%, transparent 70%)`,
-          opacity: 0.5
-        }}
-        animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.2, 1] }}
-        transition={{ repeat: Infinity, duration: 4 }}
-      />
+      ) : customImage ? (
+        /* Priority 2: Custom Image */
+        <motion.img
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          src={customImage}
+          alt={`Mascota Nivel ${level}`}
+          className="relative z-20 w-full h-full object-contain pointer-events-none"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        /* Priority 3: Default Video with SVG Fallback */
+        <div className="relative w-full h-full flex items-center justify-center">
+          <video
+            ref={videoRef}
+            key={defaultVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="relative z-20 w-full h-full object-contain pointer-events-none"
+          >
+            <source src={defaultVideo} type="video/webm" />
+            <MascotFallback level={level} />
+          </video>
+        </div>
+      )}
     </div>
   );
 }

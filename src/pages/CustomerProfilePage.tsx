@@ -77,7 +77,7 @@ export default function CustomerProfilePage() {
   const xpProgress = isMaxLevel ? 100 : ((userXp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-white pb-20">
       {/* Header */}
       <header className="bg-tuplato text-white sticky top-0 z-40 shadow-md">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
@@ -92,30 +92,38 @@ export default function CustomerProfilePage() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4 space-y-6 mt-4">
+      <main className="max-w-md mx-auto space-y-6 mt-0">
         {/* Welcome Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center relative flex flex-col items-center"
+          className="text-center relative flex flex-col items-center pt-0"
         >
-          <div className="mb-10 mt-6">
+          <div className="w-full aspect-square flex items-center justify-center overflow-hidden">
             <BurgerMascot 
               level={currentLevel} 
-              className="scale-125" 
+              className="w-full h-full"
               customImage={config.customMascots?.[currentLevel]}
               customVideo={config.customVideos?.[currentLevel]}
             />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">¡Hola, {user.name}!</h2>
-          <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-md flex items-center gap-1.5 mb-2">
-            <Star className="w-3.5 h-3.5 fill-current" />
-            NIVEL {currentLevel}
+
+          <div className="-mt-28 relative z-30 px-4 w-full">
+            <h2 className="text-4xl font-black text-gray-900 mb-2 drop-shadow-sm">
+              ¡Hola, {user.name}!
+            </h2>
+            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 mb-2 mx-auto w-fit">
+              <Star className="w-3.5 h-3.5 fill-current" />
+              NIVEL {currentLevel}
+            </div>
+            <p className="text-gray-800 text-[10px] font-bold uppercase tracking-widest">
+              Miembro desde 2026
+            </p>
           </div>
-          <p className="text-gray-500 text-sm">Miembro desde 2026</p>
         </motion.div>
 
-        {/* Level & XP Card */}
+        <div className="px-4 space-y-6 pb-4">
+          {/* Level & XP Card */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -317,6 +325,7 @@ export default function CustomerProfilePage() {
             Cerrar Sesión
           </button>
         </motion.div>
+        </div>
       </main>
     </div>
   );
