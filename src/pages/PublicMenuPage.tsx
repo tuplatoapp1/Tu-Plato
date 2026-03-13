@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles, User, LogOut, Sun, Moon } from 'lucide-react';
+import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles, User, LogOut, Sun, Moon, ClipboardList } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { MENU_ITEMS, MenuItem, MenuTag } from '../data/menu';
 import { usePublicMenu } from '../context/PublicMenuContext';
@@ -21,7 +21,7 @@ interface CartItem {
 }
 
 export default function PublicMenuPage() {
-  const { branding, offers, menuItems, categories, tags, deliveryZones, xpConfig, isLoading } = usePublicMenu();
+  const { branding, offers, menuItems, categories, tags, deliveryZones, xpConfig, isLoading, exchangeRate } = usePublicMenu();
   const { isAuthenticated, user, logout, updateCustomer } = useAuth();
   const navigate = useNavigate();
   const [currentOffer, setCurrentOffer] = useState(0);
@@ -1008,32 +1008,89 @@ export default function PublicMenuPage() {
                   )}
 
                   {checkoutStep === 2 && (
-                    <div className="space-y-6">
-                      <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-[2rem] space-y-3">
-                        <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
-                          <span>Subtotal</span>
-                          <span>${totalPrice.toFixed(2)}</span>
+                    <button 
+                      onClick={() => setCheckoutStep(3)}
+                      disabled={!locationInfo.address || !selectedZoneId}
+                      className="w-full bg-tuplato text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-tuplato/30 hover:bg-tuplato-dark hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Siguiente Paso
+                    </button>
+                  )}
+
+                  {checkoutStep === 3 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 ml-2">
+                        <button onClick={() => setCheckoutStep(2)} className="p-2 -ml-2">
+                          <ArrowLeft className="w-6 h-6 text-gray-900 dark:text-white" />
+                        </button>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white">Facturación</h2>
+                      </div>
+                      
+                      <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 space-y-5">
+                        <h3 className="font-black text-gray-900 dark:text-white text-lg">Resumen de tu pedido</h3>
+                        
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Productos</p>
+                            <div className="space-y-3">
+                              {cart.map((c) => (
+                                <div key={c.menuItem.id} className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                                  <div className="flex justify-between">
+                                    <span>{c.quantity}x {c.menuItem.name}</span>
+                                  </div>
+                                  {c.notes && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">
+                                      {c.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex gap-3">
+                            <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-xl h-fit">
+                              <MapPin className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Entrega en {selectedZone?.name || '...'}</p>
+                              <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug">{locationInfo.address}</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
-                          <span>Envío ({selectedZone ? selectedZone.name : 'Por definir'})</span>
-                          <span className="text-green-600 dark:text-green-400">
-                            {selectedZone ? `+$${selectedZone.price.toFixed(2)}` : '$0.00'}
-                          </span>
-                        </div>
-                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                          <span className="font-black text-xl text-gray-900 dark:text-white">Total Final</span>
-                          <span className="font-black text-3xl text-tuplato tracking-tighter">
-                            ${(totalPrice + (selectedZone?.price || 0)).toFixed(2)}
-                          </span>
+
+                        <div className="pt-5 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                          <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
+                            <span>Subtotal</span>
+                            <span>${totalPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
+                            <span>Envío</span>
+                            <span className="text-green-600 dark:text-green-400">
+                              {selectedZone ? `+$${selectedZone.price.toFixed(2)}` : '$0.00'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2">
+                            <span className="font-black text-xl text-gray-900 dark:text-white">Total</span>
+                            <span className="font-black text-3xl text-gray-900 dark:text-white tracking-tighter">
+                              ${(totalPrice + (selectedZone?.price || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-3 rounded-2xl">
+                            <span className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Total Bs.</span>
+                            <span className="font-black text-xl text-gray-900 dark:text-white">
+                              Bs. {((totalPrice + (selectedZone?.price || 0)) * exchangeRate).toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
                       <button 
                         onClick={handleFinishOrder}
                         disabled={!locationInfo.address || !selectedZoneId}
-                        className="w-full bg-green-600 text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-green-600/30 hover:bg-green-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        className="w-full bg-green-800 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-green-900 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                       >
-                        <Phone className="w-6 h-6" />
+                        <Phone className="w-5 h-5" />
                         Pedir por WhatsApp
                       </button>
                     </div>

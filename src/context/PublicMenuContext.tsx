@@ -96,6 +96,7 @@ interface PublicMenuContextType {
   surveys: Survey[];
   rewards: Reward[];
   xpConfig: XPConfig;
+  exchangeRate: number;
   users: any[];
   isLoading: boolean;
   updateBranding: (branding: Partial<Branding>) => Promise<boolean>;
@@ -121,6 +122,9 @@ interface PublicMenuContextType {
   updateReward: (id: string, reward: Partial<Reward>) => Promise<boolean>;
   removeReward: (id: string) => Promise<boolean>;
   updateXPConfig: (config: Partial<XPConfig>) => Promise<boolean>;
+  updateExchangeRate: (rate: number) => Promise<boolean>;
+  updateUser: (id: string, user: any) => Promise<boolean>;
+  addUser: (user: any) => Promise<boolean>;
   resetConfig: () => Promise<void>;
 }
 
@@ -224,6 +228,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [rewards, setRewards] = useState<Reward[]>(DEFAULT_REWARDS);
   const [xpConfig, setXpConfig] = useState<XPConfig>(DEFAULT_XP_CONFIG);
+  const [exchangeRate, setExchangeRate] = useState<number>(36.0); // Default rate
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -238,6 +243,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       const storedSurveys = await db.get<Survey[]>('public_menu_surveys');
       const storedRewards = await db.get<Reward[]>('public_menu_rewards');
       const storedXPConfig = await db.get<XPConfig>('public_menu_xp_config');
+      const storedExchangeRate = await db.get<number>('public_menu_exchange_rate');
 
       if (storedBranding) {
         setBranding(prev => ({ ...DEFAULT_BRANDING, ...storedBranding }));
@@ -265,6 +271,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       }
       if (storedXPConfig) {
         setXpConfig(storedXPConfig);
+      }
+      if (storedExchangeRate) {
+        setExchangeRate(storedExchangeRate);
       }
 
       // Load users from localStorage (mocking a DB for now)
@@ -666,6 +675,47 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const updateExchangeRate = async (rate: number): Promise<boolean> => {
+    try {
+      await db.set('public_menu_exchange_rate', rate);
+      setExchangeRate(rate);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating exchange rate:', error);
+      return false;
+    }
+  };
+
+  const updateUser = async (id: string, updates: any): Promise<boolean> => {
+    try {
+      const updatedUsers = users.map(user => 
+        user.id === id ? { ...user, ...updates } : user
+      );
+      localStorage.setItem('registered_customers', JSON.stringify(updatedUsers));
+      setUsers(updatedUsers);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return false;
+    }
+  };
+
+  const addUser = async (user: any): Promise<boolean> => {
+    try {
+      const newUser = { ...user, id: crypto.randomUUID(), xp: 0, points: 0, role: 'customer', registeredAt: new Date().toISOString() };
+      const updatedUsers = [...users, newUser];
+      localStorage.setItem('registered_customers', JSON.stringify(updatedUsers));
+      setUsers(updatedUsers);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error adding user:', error);
+      return false;
+    }
+  };
+
   const resetConfig = async () => {
     try {
       await db.clear();
@@ -695,6 +745,7 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       surveys,
       rewards,
       xpConfig,
+      exchangeRate,
       users,
       isLoading, 
       updateBranding, 
@@ -720,6 +771,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       updateReward,
       removeReward,
       updateXPConfig,
+      updateExchangeRate,
+      updateUser,
+      addUser,
       resetConfig
     }}>
       {children}

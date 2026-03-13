@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Search, Mail, Phone, Calendar, CreditCard, Star, Trophy, X, MapPin, Crown, ShoppingBag, Clock, TrendingUp, MessageSquare, Heart } from 'lucide-react';
+import { Users, Search, Mail, Phone, Calendar, CreditCard, Star, Trophy, X, MapPin, Crown, ShoppingBag, Clock, TrendingUp, MessageSquare, Heart, Edit2, Save } from 'lucide-react';
 import { Input } from './ui/Input';
+import { Button } from './ui/Button';
 import { Order } from '../types';
 import { usePublicMenu } from '../context/PublicMenuContext';
+import { toast } from 'sonner';
 
 interface Customer {
   id: string;
@@ -21,18 +23,54 @@ interface Customer {
 }
 
 export default function UserListTab() {
-  const { users: customers, xpConfig } = usePublicMenu();
+  const { users: customers, xpConfig, updateUser } = usePublicMenu();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editXp, setEditXp] = useState<number>(0);
+  const [editPoints, setEditPoints] = useState<number>(0);
 
   const XP_LEVELS = xpConfig?.xpLevels || [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 12000];
+  const MAX_LEVEL = XP_LEVELS.length;
 
   useEffect(() => {
     // Load orders
     const storedOrders = JSON.parse(localStorage.getItem('customer_orders') || '[]');
     setCustomerOrders(storedOrders);
   }, []);
+
+  const handleEditClick = () => {
+    if (selectedCustomer) {
+      setEditXp(selectedCustomer.xp || 0);
+      setEditPoints(selectedCustomer.points || 0);
+      setIsEditing(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedCustomer) return;
+    
+    const success = await updateUser(selectedCustomer.id, {
+      xp: editXp,
+      points: editPoints
+    });
+
+    if (success) {
+      toast.success('Nivel y puntos actualizados');
+      setSelectedCustomer({ ...selectedCustomer, xp: editXp, points: editPoints });
+      setIsEditing(false);
+    } else {
+      toast.error('Error al actualizar');
+    }
+  };
+
+  const handleLevelChange = (level: number) => {
+    if (level >= 1 && level <= MAX_LEVEL) {
+      setEditXp(XP_LEVELS[level - 1]);
+    }
+  };
 
   const filteredCustomers = customers.filter(customer => {
     const searchString = `${customer.name} ${customer.lastName || ''} ${customer.email || ''} ${customer.documentId || ''}`.toLowerCase();
@@ -337,23 +375,90 @@ export default function UserListTab() {
 
                     {/* Rewards Summary */}
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-2xl border border-gray-200">
-                      <h4 className="font-bold text-gray-900 mb-3">Resumen de Recompensas</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                          <div className="flex items-center gap-2 text-yellow-600 mb-1">
-                            <Star className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Experiencia</span>
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-bold text-gray-900">Resumen de Recompensas</h4>
+                        {!isEditing ? (
+                          <button 
+                            onClick={handleEditClick}
+                            className="text-tuplato hover:text-tuplato-dark text-sm font-bold flex items-center gap-1"
+                          >
+                            <Edit2 className="w-4 h-4" /> Editar
+                          </button>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => setIsEditing(false)}
+                              className="text-gray-500 hover:text-gray-700 text-sm font-bold"
+                            >
+                              Cancelar
+                            </button>
+                            <button 
+                              onClick={handleSaveEdit}
+                              className="text-tuplato hover:text-tuplato-dark text-sm font-bold flex items-center gap-1"
+                            >
+                              <Save className="w-4 h-4" /> Guardar
+                            </button>
                           </div>
-                          <p className="text-2xl font-black text-gray-900">{selectedCustomer.xp || 0}</p>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-                          <div className="flex items-center gap-2 text-tuplato mb-1">
-                            <Trophy className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Puntos</span>
-                          </div>
-                          <p className="text-2xl font-black text-gray-900">{selectedCustomer.points || 0}</p>
-                        </div>
+                        )}
                       </div>
+                      
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Nivel</label>
+                            <select 
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tuplato focus:border-transparent outline-none text-sm"
+                              value={getCustomerLevelInfo(editXp).currentLevel}
+                              onChange={(e) => handleLevelChange(parseInt(e.target.value))}
+                            >
+                              {XP_LEVELS.map((_, index) => (
+                                <option key={index} value={index + 1}>
+                                  Nivel {index + 1}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-700 mb-1">XP Exacta</label>
+                              <Input 
+                                type="number"
+                                value={editXp}
+                                onChange={(e) => setEditXp(parseInt(e.target.value) || 0)}
+                                min="0"
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-700 mb-1">Puntos</label>
+                              <Input 
+                                type="number"
+                                value={editPoints}
+                                onChange={(e) => setEditPoints(parseInt(e.target.value) || 0)}
+                                min="0"
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-2 text-yellow-600 mb-1">
+                              <Star className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">Experiencia</span>
+                            </div>
+                            <p className="text-2xl font-black text-gray-900">{selectedCustomer.xp || 0}</p>
+                          </div>
+                          <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-2 text-tuplato mb-1">
+                              <Trophy className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">Puntos</span>
+                            </div>
+                            <p className="text-2xl font-black text-gray-900">{selectedCustomer.points || 0}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

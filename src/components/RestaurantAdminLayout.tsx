@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, Settings, Utensils, MapPin, Trophy, Users, ClipboardList, ChefHat, LogOut, Menu, X, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Settings, Utensils, MapPin, Trophy, Users, ClipboardList, ChefHat, LogOut, Menu, X, Image as ImageIcon, DollarSign } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { usePublicMenu } from '../context/PublicMenuContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function RestaurantAdminLayout() {
   const { logout } = useAuth();
+  const { exchangeRate, updateExchangeRate } = usePublicMenu();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const [isEditingRate, setIsEditingRate] = useState(false);
+  const [newRate, setNewRate] = useState(exchangeRate.toString());
+
+  const handleUpdateRate = async () => {
+    const rate = parseFloat(newRate);
+    if (!isNaN(rate)) {
+      await updateExchangeRate(rate);
+      setIsEditingRate(false);
+    }
+  };
 
   const menuItems = [
     { path: '/restaurant/branding', label: 'Configuración Pública', icon: Settings },
@@ -32,7 +45,7 @@ export default function RestaurantAdminLayout() {
         </div>
       </div>
 
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-4 border-b border-gray-100 space-y-2">
         <Link
           to="/"
           className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-tuplato bg-tuplato/5 rounded-xl hover:bg-tuplato/10 transition-all duration-200"
@@ -40,6 +53,49 @@ export default function RestaurantAdminLayout() {
           <ArrowLeft className="w-5 h-5" />
           Volver al inicio
         </Link>
+        <Link
+          to="/restaurant/menu"
+          className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-tuplato bg-tuplato/5 rounded-xl hover:bg-tuplato/10 transition-all duration-200"
+        >
+          <Utensils className="w-5 h-5" />
+          Menú de Cliente
+        </Link>
+        <div className="flex items-center justify-between gap-2 px-4 py-3 text-sm font-bold text-tuplato bg-tuplato/5 rounded-xl">
+          {isEditingRate ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={newRate}
+                onChange={(e) => setNewRate(e.target.value)}
+                className="w-20 px-2 py-1 rounded text-sm bg-white border border-tuplato/30 focus:outline-none"
+              />
+              <button
+                onClick={handleUpdateRate}
+                className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors"
+                title="Guardar"
+              >
+                Guardar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-5 h-5" />
+                Tasa: {exchangeRate} VES
+              </div>
+              <button
+                onClick={() => {
+                  setNewRate(exchangeRate.toString());
+                  setIsEditingRate(true);
+                }}
+                className="text-xs bg-tuplato/20 px-2 py-1 rounded hover:bg-tuplato/30 transition-colors"
+                title="Cambiar tasa"
+              >
+                Editar
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

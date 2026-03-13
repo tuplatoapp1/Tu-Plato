@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePublicMenu } from '../context/PublicMenuContext';
@@ -57,8 +57,13 @@ export default function CustomerProfilePage() {
   };
 
   // Redirect if not logged in
+  useEffect(() => {
+    if (!user) {
+      navigate('/customer-auth');
+    }
+  }, [user, navigate]);
+
   if (!user) {
-    navigate('/customer-auth');
     return null;
   }
 
@@ -180,7 +185,7 @@ export default function CustomerProfilePage() {
         </div>
       </div>
 
-      <main className="max-w-md mx-auto space-y-6 mt-0">
+      <main className="max-w-md mx-auto space-y-6 mt-0 px-4">
         {activeTab === 'profile' ? (
           <>
             {/* Welcome Section & Mascot */}
@@ -200,7 +205,7 @@ export default function CustomerProfilePage() {
               </div>
 
               {/* User Info */}
-              <div className="relative z-30 px-4 w-full -mt-6 mb-6">
+              <div className="relative z-30 w-full -mt-6 mb-6">
                 <h2 className="text-3xl font-black text-gray-900 mb-2 drop-shadow-sm">
                   ¡Hola, {user.name}!
                 </h2>
@@ -222,7 +227,7 @@ export default function CustomerProfilePage() {
               </div>
             </motion.div>
 
-            <div className="px-4 space-y-6 pb-4">
+            <div className="space-y-6 pb-4">
               {/* Level & XP Card */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
