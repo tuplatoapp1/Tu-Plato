@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
-import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy, Trophy, Users } from 'lucide-react';
+import { Search, Filter, Utensils, Coffee, Wine, Pizza, IceCream, ChefHat, Plus, Edit2, Trash2, ExternalLink, Settings, Image as ImageIcon, Type, Palette, X, Upload, Phone, MapPin, Instagram, Facebook, Clock, Ban, CheckCircle, Share2, Copy, Trophy, Users, ClipboardList } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -12,6 +12,7 @@ import { compressImage } from '../lib/imageUtils';
 import RewardsConfigTab from '../components/RewardsConfigTab';
 import UserListTab from '../components/UserListTab';
 import DeliveryZonesTab from '../components/DeliveryZonesTab';
+import SurveyTab from '../components/SurveyTab';
 
 const CATEGORIES = [
   { id: 'all', label: 'Todo', icon: Utensils },
@@ -22,7 +23,7 @@ const CATEGORIES = [
 ];
 
 export default function RestaurantMenuPage() {
-  const [activeTab, setActiveTab] = useState<'menu' | 'config' | 'delivery' | 'rewards' | 'users'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'config' | 'delivery' | 'rewards' | 'users' | 'survey'>('menu');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -317,6 +318,17 @@ export default function RestaurantMenuPage() {
             <Users className="w-4 h-4" />
             Lista de Usuarios
           </button>
+          <button
+            onClick={() => setActiveTab('survey')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all snap-start whitespace-nowrap ${
+              activeTab === 'survey' 
+                ? 'bg-tuplato text-white shadow-md shadow-tuplato/20' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            Encuestas
+          </button>
         </div>
         {/* Gradient fade for scroll indication on mobile */}
         <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden" />
@@ -542,8 +554,8 @@ export default function RestaurantMenuPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
                         <Input 
                           type="number"
-                          value={editingItem.price}
-                          onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) }) : null)}
+                          value={editingItem.price || 0}
+                          onChange={(e) => setEditingItem(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) || 0 }) : null)}
                           placeholder="0.00"
                           min="0"
                           step="0.01"
@@ -1238,6 +1250,8 @@ export default function RestaurantMenuPage() {
         <RewardsConfigTab />
       ) : activeTab === 'users' ? (
         <UserListTab />
+      ) : activeTab === 'survey' ? (
+        <SurveyTab />
       ) : null}
 
       {/* Category Management Modal */}

@@ -117,7 +117,7 @@ export default function Layout() {
   const menuItems: MenuItemType[] = [
     { path: '/', key: 'home', label: 'Inicio', defaultIcon: 'Home' },
     { path: '/dashboard', key: 'dashboard', label: 'Panel de Control', defaultIcon: 'BarChart3' },
-    { path: '/menu', key: 'menu', label: 'Menú del Restaurante', defaultIcon: 'BookOpen' },
+    { path: '/restaurant/menu', key: 'menu', label: 'Menú del Restaurante', defaultIcon: 'BookOpen' },
     { path: '/movements', key: 'history', label: 'Historial de Movimientos', defaultIcon: 'History' },
     { 
       key: 'departments', 

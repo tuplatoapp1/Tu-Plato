@@ -51,6 +51,41 @@ export interface DeliveryZone {
   price: number;
 }
 
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  type: 'rating' | 'text' | 'multiple_choice';
+  options?: string[];
+}
+
+export interface Survey {
+  id: string;
+  title: string;
+  description: string;
+  isActive: boolean;
+  questions: SurveyQuestion[];
+  rewardXP?: number;
+  targetType: 'all' | 'level' | 'specific';
+  targetValue?: any;
+}
+
+export interface Reward {
+  id: string;
+  title: string;
+  description: string;
+  xpRequired: number;
+  icon: string;
+  image?: string;
+}
+
+export interface XPConfig {
+  xpPerDollar: number;
+  pointsPerDollar: number;
+  xpLevels: number[];
+  customMascots?: Record<number, string>;
+  customVideos?: Record<number, string>;
+}
+
 interface PublicMenuContextType {
   branding: Branding;
   offers: Offer[];
@@ -58,6 +93,10 @@ interface PublicMenuContextType {
   categories: Category[];
   tags: Tag[];
   deliveryZones: DeliveryZone[];
+  surveys: Survey[];
+  rewards: Reward[];
+  xpConfig: XPConfig;
+  users: any[];
   isLoading: boolean;
   updateBranding: (branding: Partial<Branding>) => Promise<boolean>;
   addOffer: (offer: Omit<Offer, 'id'>) => Promise<boolean>;
@@ -75,6 +114,13 @@ interface PublicMenuContextType {
   addDeliveryZone: (zone: Omit<DeliveryZone, 'id'>) => Promise<boolean>;
   updateDeliveryZone: (id: string, zone: Partial<DeliveryZone>) => Promise<boolean>;
   removeDeliveryZone: (id: string) => Promise<boolean>;
+  addSurvey: (survey: Omit<Survey, 'id'>) => Promise<boolean>;
+  updateSurvey: (id: string, survey: Partial<Survey>) => Promise<boolean>;
+  removeSurvey: (id: string) => Promise<boolean>;
+  addReward: (reward: Omit<Reward, 'id'>) => Promise<boolean>;
+  updateReward: (id: string, reward: Partial<Reward>) => Promise<boolean>;
+  removeReward: (id: string) => Promise<boolean>;
+  updateXPConfig: (config: Partial<XPConfig>) => Promise<boolean>;
   resetConfig: () => Promise<void>;
 }
 
@@ -140,6 +186,29 @@ const DEFAULT_DELIVERY_ZONES: DeliveryZone[] = [
   { id: '3', name: 'Centro', price: 1.50 },
 ];
 
+const DEFAULT_REWARDS: Reward[] = [
+  {
+    id: '1',
+    title: 'Hamburguesa Gratis',
+    description: 'Canjeable por 500 XP',
+    xpRequired: 500,
+    icon: 'Gift'
+  },
+  {
+    id: '2',
+    title: 'Bebida Grande Gratis',
+    description: 'Canjeable por 200 XP',
+    xpRequired: 200,
+    icon: 'Trophy'
+  }
+];
+
+const DEFAULT_XP_CONFIG: XPConfig = {
+  xpPerDollar: 10,
+  pointsPerDollar: 10,
+  xpLevels: [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 12000]
+};
+
 const PublicMenuContext = createContext<PublicMenuContextType | undefined>(undefined);
 
 // Channel for cross-tab/component communication
@@ -152,6 +221,10 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [tags, setTags] = useState<Tag[]>(DEFAULT_TAGS);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>(DEFAULT_DELIVERY_ZONES);
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>(DEFAULT_REWARDS);
+  const [xpConfig, setXpConfig] = useState<XPConfig>(DEFAULT_XP_CONFIG);
+  const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
@@ -162,6 +235,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       const storedCategories = await db.get<Category[]>('public_menu_categories');
       const storedTags = await db.get<Tag[]>('public_menu_tags');
       const storedZones = await db.get<DeliveryZone[]>('public_menu_zones');
+      const storedSurveys = await db.get<Survey[]>('public_menu_surveys');
+      const storedRewards = await db.get<Reward[]>('public_menu_rewards');
+      const storedXPConfig = await db.get<XPConfig>('public_menu_xp_config');
 
       if (storedBranding) {
         setBranding(prev => ({ ...DEFAULT_BRANDING, ...storedBranding }));
@@ -181,6 +257,85 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       if (storedZones) {
         setDeliveryZones(storedZones);
       }
+      if (storedSurveys) {
+        setSurveys(storedSurveys);
+      }
+      if (storedRewards) {
+        setRewards(storedRewards);
+      }
+      if (storedXPConfig) {
+        setXpConfig(storedXPConfig);
+      }
+
+      // Load users from localStorage (mocking a DB for now)
+      let storedUsers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
+      
+      if (storedUsers.length === 0) {
+        storedUsers = [
+          {
+            id: '1',
+            username: 'juan.perez@email.com',
+            name: 'Juan',
+            lastName: 'Pérez',
+            documentId: '123456789',
+            phone: '+1 234 567 8900',
+            email: 'juan.perez@email.com',
+            birthDate: '1990-05-15',
+            points: 1250,
+            xp: 3400,
+            registeredAt: '2025-11-20T10:00:00Z',
+            address: 'Av. Principal 123, Ciudad',
+            role: 'customer'
+          },
+          {
+            id: '2',
+            username: 'maria.gomez@email.com',
+            name: 'María',
+            lastName: 'Gómez',
+            documentId: '987654321',
+            phone: '+1 987 654 3210',
+            email: 'maria.gomez@email.com',
+            birthDate: '1988-10-22',
+            points: 450,
+            xp: 1200,
+            registeredAt: '2026-01-15T14:30:00Z',
+            address: 'Calle Secundaria 456, Barrio Sur',
+            role: 'customer'
+          },
+          {
+            id: '3',
+            username: 'carlos.lopez@email.com',
+            name: 'Carlos',
+            lastName: 'López',
+            documentId: '456123789',
+            phone: '+1 456 123 7890',
+            email: 'carlos.lopez@email.com',
+            birthDate: '1995-03-08',
+            points: 3200,
+            xp: 8500,
+            registeredAt: '2025-08-05T09:15:00Z',
+            address: 'Plaza Central 789, Depto 4B',
+            role: 'customer'
+          },
+          {
+            id: '4',
+            username: 'pedroadmin@email.com',
+            name: 'Pedroadmin',
+            lastName: 'Prueba',
+            documentId: '1122334455',
+            phone: '+1 555 123 4567',
+            email: 'pedroadmin@email.com',
+            birthDate: '1985-01-01',
+            points: 10000,
+            xp: 2500,
+            registeredAt: '2026-02-01T10:00:00Z',
+            address: 'Calle de Prueba 123',
+            role: 'customer'
+          }
+        ];
+        localStorage.setItem('registered_customers', JSON.stringify(storedUsers));
+      }
+      setUsers(storedUsers);
     } catch (error) {
       console.error('Failed to load menu data:', error);
     } finally {
@@ -418,6 +573,99 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const addSurvey = async (survey: Omit<Survey, 'id'>): Promise<boolean> => {
+    try {
+      const newSurvey = { ...survey, id: crypto.randomUUID() };
+      const newSurveys = [...surveys, newSurvey];
+      await db.set('public_menu_surveys', newSurveys);
+      setSurveys(newSurveys);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error adding survey:', error);
+      return false;
+    }
+  };
+
+  const updateSurvey = async (id: string, updates: Partial<Survey>): Promise<boolean> => {
+    try {
+      const newSurveys = surveys.map(s => s.id === id ? { ...s, ...updates } : s);
+      await db.set('public_menu_surveys', newSurveys);
+      setSurveys(newSurveys);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating survey:', error);
+      return false;
+    }
+  };
+
+  const removeSurvey = async (id: string): Promise<boolean> => {
+    try {
+      const newSurveys = surveys.filter(s => s.id !== id);
+      await db.set('public_menu_surveys', newSurveys);
+      setSurveys(newSurveys);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error removing survey:', error);
+      return false;
+    }
+  };
+
+  const addReward = async (reward: Omit<Reward, 'id'>): Promise<boolean> => {
+    try {
+      const newReward = { ...reward, id: crypto.randomUUID() };
+      const newRewards = [...rewards, newReward];
+      await db.set('public_menu_rewards', newRewards);
+      setRewards(newRewards);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error adding reward:', error);
+      return false;
+    }
+  };
+
+  const updateReward = async (id: string, updates: Partial<Reward>): Promise<boolean> => {
+    try {
+      const newRewards = rewards.map(r => r.id === id ? { ...r, ...updates } : r);
+      await db.set('public_menu_rewards', newRewards);
+      setRewards(newRewards);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating reward:', error);
+      return false;
+    }
+  };
+
+  const removeReward = async (id: string): Promise<boolean> => {
+    try {
+      const newRewards = rewards.filter(r => r.id !== id);
+      await db.set('public_menu_rewards', newRewards);
+      setRewards(newRewards);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error removing reward:', error);
+      return false;
+    }
+  };
+
+  const updateXPConfig = async (updates: Partial<XPConfig>): Promise<boolean> => {
+    try {
+      const newConfig = { ...xpConfig, ...updates };
+      await db.set('public_menu_xp_config', newConfig);
+      setXpConfig(newConfig);
+      notifyUpdates();
+      return true;
+    } catch (error) {
+      console.error('Error updating XP config:', error);
+      return false;
+    }
+  };
+
   const resetConfig = async () => {
     try {
       await db.clear();
@@ -427,6 +675,9 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       setCategories(DEFAULT_CATEGORIES);
       setTags(DEFAULT_TAGS);
       setDeliveryZones(DEFAULT_DELIVERY_ZONES);
+      setSurveys([]);
+      setRewards(DEFAULT_REWARDS);
+      setXpConfig(DEFAULT_XP_CONFIG);
       notifyUpdates();
     } catch (error) {
       console.error('Error resetting config:', error);
@@ -441,6 +692,10 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       categories,
       tags,
       deliveryZones,
+      surveys,
+      rewards,
+      xpConfig,
+      users,
       isLoading, 
       updateBranding, 
       addOffer, 
@@ -458,6 +713,13 @@ export function PublicMenuProvider({ children }: { children: React.ReactNode }) 
       addDeliveryZone,
       updateDeliveryZone,
       removeDeliveryZone,
+      addSurvey,
+      updateSurvey,
+      removeSurvey,
+      addReward,
+      updateReward,
+      removeReward,
+      updateXPConfig,
       resetConfig
     }}>
       {children}

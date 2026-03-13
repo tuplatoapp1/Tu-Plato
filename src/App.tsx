@@ -6,7 +6,6 @@ import { UIProvider } from './context/UIContext';
 import { DepartmentProvider } from './context/DepartmentContext';
 import { PublicMenuProvider } from './context/PublicMenuContext';
 import { TipsProvider } from './context/TipsContext';
-import { RewardsProvider } from './context/RewardsContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -20,6 +19,14 @@ import PublicMenuPage from './pages/PublicMenuPage';
 import CustomerAuthPage from './pages/CustomerAuthPage';
 import CustomerProfilePage from './pages/CustomerProfilePage';
 import TipsPage from './pages/TipsPage';
+import RestaurantAdminLayout from './components/RestaurantAdminLayout';
+import RestaurantMenuManagementPage from './pages/restaurant/RestaurantMenuManagementPage';
+import RestaurantBrandingPage from './pages/restaurant/RestaurantBrandingPage';
+import DeliveryZonesPage from './pages/restaurant/DeliveryZonesPage';
+import RewardsConfigPage from './pages/restaurant/RewardsConfigPage';
+import MascotsConfigPage from './pages/restaurant/MascotsConfigPage';
+import UserListPage from './pages/restaurant/UserListPage';
+import SurveyPage from './pages/restaurant/SurveyPage';
 import { Toaster } from 'sonner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,9 +48,8 @@ export default function App() {
               <DepartmentProvider>
                 <PublicMenuProvider>
                   <TipsProvider>
-                    <RewardsProvider>
-                      <Routes>
-                        <Route path="/login" element={<LoginPage />} />
+                    <Routes>
+                      <Route path="/login" element={<LoginPage />} />
                         <Route path="/public-menu" element={<PublicMenuPage />} />
                         <Route path="/customer-auth" element={<CustomerAuthPage />} />
                         <Route path="/customer-profile" element={<CustomerProfilePage />} />
@@ -62,10 +68,25 @@ export default function App() {
                           <Route path="tips" element={<TipsPage />} />
                           <Route path="settings" element={<SettingsPage />} />
                         </Route>
+
+                        {/* Restaurant Admin Routes */}
+                        <Route path="/restaurant" element={
+                          <ProtectedRoute>
+                            <RestaurantAdminLayout />
+                          </ProtectedRoute>
+                        }>
+                          <Route index element={<Navigate to="/restaurant/menu" replace />} />
+                          <Route path="branding" element={<RestaurantBrandingPage />} />
+                          <Route path="menu" element={<RestaurantMenuManagementPage />} />
+                          <Route path="delivery" element={<DeliveryZonesPage />} />
+                          <Route path="rewards" element={<RewardsConfigPage />} />
+                          <Route path="mascots" element={<MascotsConfigPage />} />
+                          <Route path="users" element={<UserListPage />} />
+                          <Route path="surveys" element={<SurveyPage />} />
+                        </Route>
                       </Routes>
-                    </RewardsProvider>
-                  </TipsProvider>
-                </PublicMenuProvider>
+                    </TipsProvider>
+                  </PublicMenuProvider>
               </DepartmentProvider>
             </UIProvider>
           </InventoryProvider>

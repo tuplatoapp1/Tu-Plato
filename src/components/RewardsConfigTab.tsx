@@ -3,17 +3,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Star, Gift, Plus, Edit2, Trash2, Save, X, Image, Upload } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { useRewards, Prize } from '../context/RewardsContext';
+import { usePublicMenu, Reward } from '../context/PublicMenuContext';
 import { toast } from 'sonner';
 import { BurgerMascot } from './BurgerMascot';
 
 export default function RewardsConfigTab() {
-  const { config, updateConfig, addPrize, updatePrize, removePrize } = useRewards();
-  const [xpPerDollar, setXpPerDollar] = useState(config.xpPerDollar.toString());
-  const [xpLevels, setXpLevels] = useState([...config.xpLevels]);
+  const { rewards, xpConfig, updateXPConfig, addReward, updateReward, removeReward } = usePublicMenu();
+  const [xpPerDollar, setXpPerDollar] = useState(xpConfig.xpPerDollar.toString());
+  const [pointsPerDollar, setPointsPerDollar] = useState((xpConfig.pointsPerDollar || 10).toString());
+  const [xpLevels, setXpLevels] = useState([...xpConfig.xpLevels]);
   
   const [isPrizeModalOpen, setIsPrizeModalOpen] = useState(false);
-  const [editingPrize, setEditingPrize] = useState<Partial<Prize> | null>(null);
+  const [editingPrize, setEditingPrize] = useState<Partial<Reward> | null>(null);
 
   const [isMascotModalOpen, setIsMascotModalOpen] = useState(false);
   const [editingMascotLevel, setEditingMascotLevel] = useState<number | null>(null);
@@ -22,8 +23,13 @@ export default function RewardsConfigTab() {
 
   const handleSaveConfig = () => {
     const parsedXp = parseFloat(xpPerDollar);
+    const parsedPoints = parseFloat(pointsPerDollar);
     if (isNaN(parsedXp) || parsedXp <= 0) {
       toast.error('La experiencia por dólar debe ser un número válido mayor a 0');
+      return;
+    }
+    if (isNaN(parsedPoints) || parsedPoints <= 0) {
+      toast.error('Los puntos por dólar deben ser un número válido mayor a 0');
       return;
     }
 
@@ -41,8 +47,9 @@ export default function RewardsConfigTab() {
       return;
     }
 
-    updateConfig({
+    updateXPConfig({
       xpPerDollar: parsedXp,
+      pointsPerDollar: parsedPoints,
       xpLevels: xpLevels
     });
     toast.success('Configuración de niveles guardada');
@@ -55,16 +62,16 @@ export default function RewardsConfigTab() {
   };
 
   const handleSavePrize = () => {
-    if (!editingPrize?.name || !editingPrize?.description || !editingPrize?.pointsRequired) {
+    if (!editingPrize?.title || !editingPrize?.description || !editingPrize?.xpRequired) {
       toast.error('Por favor completa todos los campos del premio');
       return;
     }
 
     if (editingPrize.id) {
-      updatePrize(editingPrize.id, editingPrize);
+      updateReward(editingPrize.id, editingPrize);
       toast.success('Premio actualizado');
     } else {
-      addPrize(editingPrize as Omit<Prize, 'id'>);
+      addReward(editingPrize as Omit<Reward, 'id'>);
       toast.success('Premio creado');
     }
     setIsPrizeModalOpen(false);
@@ -74,21 +81,21 @@ export default function RewardsConfigTab() {
   const handleSaveMascot = () => {
     if (editingMascotLevel === null) return;
     
-    const newCustomMascots = { ...(config.customMascots || {}) };
+    const newCustomMascots = { ...(xpConfig.customMascots || {}) };
     if (mascotImageUrl.trim() === '') {
       delete newCustomMascots[editingMascotLevel];
     } else {
       newCustomMascots[editingMascotLevel] = mascotImageUrl;
     }
 
-    const newCustomVideos = { ...(config.customVideos || {}) };
+    const newCustomVideos = { ...(xpConfig.customVideos || {}) };
     if (mascotVideoUrl.trim() === '') {
       delete newCustomVideos[editingMascotLevel];
     } else {
       newCustomVideos[editingMascotLevel] = mascotVideoUrl;
     }
     
-    updateConfig({ 
+    updateXPConfig({ 
       customMascots: newCustomMascots,
       customVideos: newCustomVideos
     });
@@ -209,24 +216,46 @@ export default function RewardsConfigTab() {
         </div>
         
         <div className="p-6 space-y-6">
-          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-            <label className="block text-sm font-bold text-blue-900 mb-2">
-              Experiencia (XP) por cada $1 gastado
-            </label>
-            <div className="flex items-center gap-3">
-              <Input 
-                type="number" 
-                value={xpPerDollar}
-                onChange={(e) => setXpPerDollar(e.target.value)}
-                className="w-32"
-                min="0.1"
-                step="0.1"
-              />
-              <span className="text-blue-700 font-medium">XP</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+              <label className="block text-sm font-bold text-blue-900 mb-2">
+                Experiencia (XP) por cada $1 gastado
+              </label>
+              <div className="flex items-center gap-3">
+                <Input 
+                  type="number" 
+                  value={xpPerDollar}
+                  onChange={(e) => setXpPerDollar(e.target.value)}
+                  className="w-full"
+                  min="0.1"
+                  step="0.1"
+                />
+                <span className="text-blue-700 font-medium">XP</span>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                Para subir de nivel.
+              </p>
             </div>
-            <p className="text-xs text-blue-600 mt-2">
-              Ejemplo: Si el cliente gasta $20 y configuras 1 XP, ganará 20 XP.
-            </p>
+
+            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+              <label className="block text-sm font-bold text-emerald-900 mb-2">
+                Puntos por cada $1 gastado
+              </label>
+              <div className="flex items-center gap-3">
+                <Input 
+                  type="number" 
+                  value={pointsPerDollar}
+                  onChange={(e) => setPointsPerDollar(e.target.value)}
+                  className="w-full"
+                  min="0.1"
+                  step="0.1"
+                />
+                <span className="text-emerald-700 font-medium">Pts</span>
+              </div>
+              <p className="text-xs text-emerald-600 mt-2">
+                Para canjear premios.
+              </p>
+            </div>
           </div>
 
           <div>
@@ -240,7 +269,7 @@ export default function RewardsConfigTab() {
                   <div className="flex-1">
                     <Input 
                       type="number" 
-                      value={xp}
+                      value={isNaN(xp) ? 0 : xp}
                       onChange={(e) => handleLevelChange(index, e.target.value)}
                       disabled={index === 0} // Level 1 is always 0
                     />
@@ -264,7 +293,7 @@ export default function RewardsConfigTab() {
           </div>
           <Button 
             onClick={() => {
-              setEditingPrize({ name: '', description: '', pointsRequired: 100 });
+              setEditingPrize({ title: '', description: '', xpRequired: 100, icon: 'gift' });
               setIsPrizeModalOpen(true);
             }} 
             size="sm" 
@@ -275,22 +304,36 @@ export default function RewardsConfigTab() {
         </div>
 
         <div className="p-6">
-          {config.prizes.length === 0 ? (
+          {rewards.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <Gift className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p>No hay premios configurados.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {config.prizes.map((prize) => (
+              {rewards.map((prize) => (
                 <div key={prize.id} className="border border-gray-100 rounded-xl p-4 flex items-center justify-between hover:border-tuplato/30 transition-colors">
-                  <div>
-                    <h4 className="font-bold text-gray-900">{prize.name}</h4>
-                    <p className="text-sm text-gray-500 mb-2">{prize.description}</p>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
-                      <Trophy className="w-3 h-3" />
-                      {prize.pointsRequired} Puntos
-                    </span>
+                  <div className="flex items-center gap-4">
+                    {prize.image ? (
+                      <img 
+                        src={prize.image} 
+                        alt={prize.title} 
+                        className="w-16 h-16 rounded-lg object-contain bg-gray-50 border border-gray-100 p-1"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-tuplato/10 flex items-center justify-center">
+                        <Gift className="w-8 h-8 text-tuplato" />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-bold text-gray-900">{prize.title}</h4>
+                      <p className="text-sm text-gray-500 mb-2">{prize.description}</p>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
+                        <Trophy className="w-3 h-3" />
+                        {prize.xpRequired} Puntos
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button 
@@ -304,7 +347,7 @@ export default function RewardsConfigTab() {
                     </button>
                     <button 
                       onClick={() => {
-                        if (confirm('¿Eliminar este premio?')) removePrize(prize.id);
+                        if (confirm('¿Eliminar este premio?')) removeReward(prize.id);
                       }}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     >
@@ -333,8 +376,8 @@ export default function RewardsConfigTab() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {Array.from({ length: 10 }).map((_, i) => {
               const level = i + 1;
-              const customImage = config.customMascots?.[level];
-              const customVideo = config.customVideos?.[level];
+              const customImage = xpConfig.customMascots?.[level];
+              const customVideo = xpConfig.customVideos?.[level];
               
               return (
                 <div key={level} className="border border-gray-100 rounded-xl p-4 flex flex-col items-center text-center hover:border-tuplato/30 transition-colors relative group">
@@ -400,8 +443,8 @@ export default function RewardsConfigTab() {
               <div className="p-6 space-y-4">
                 <Input 
                   label="Nombre del Premio"
-                  value={editingPrize.name || ''}
-                  onChange={(e) => setEditingPrize({...editingPrize, name: e.target.value})}
+                  value={editingPrize.title || ''}
+                  onChange={(e) => setEditingPrize({...editingPrize, title: e.target.value})}
                   placeholder="Ej: Hamburguesa Gratis"
                 />
                 
@@ -421,10 +464,52 @@ export default function RewardsConfigTab() {
                 <Input 
                   label="Puntos Requeridos"
                   type="number"
-                  value={editingPrize.pointsRequired || ''}
-                  onChange={(e) => setEditingPrize({...editingPrize, pointsRequired: parseInt(e.target.value) || 0})}
+                  value={editingPrize.xpRequired || ''}
+                  onChange={(e) => setEditingPrize({...editingPrize, xpRequired: parseInt(e.target.value) || 0})}
                   min="1"
                 />
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Imagen del Premio (Opcional)</label>
+                  <div className="flex items-center gap-4">
+                    {editingPrize.image && (
+                      <div className="relative w-20 h-20 shrink-0">
+                        <img 
+                          src={editingPrize.image} 
+                          alt="Preview" 
+                          className="w-full h-full object-contain bg-gray-50 rounded-xl border border-gray-200 p-1"
+                          referrerPolicy="no-referrer"
+                        />
+                        <button 
+                          onClick={() => setEditingPrize({...editingPrize, image: undefined})}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <label className="flex-1 flex flex-col items-center justify-center h-20 border-2 border-dashed rounded-xl cursor-pointer bg-gray-50 border-gray-300 hover:bg-gray-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                        <Upload className="w-5 h-5 mb-1 text-gray-400" />
+                        <p className="text-[10px] text-gray-500"><span className="font-semibold">Subir imagen</span></p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setEditingPrize({...editingPrize, image: reader.result as string});
+                          };
+                          reader.readAsDataURL(file);
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="p-6 bg-gray-50 flex justify-end gap-3">

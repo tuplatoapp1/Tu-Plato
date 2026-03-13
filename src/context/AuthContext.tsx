@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       points: customerData.points || 450,
       xp: customerData.xp || 1250,
       prizes: customerData.prizes || [
-        { id: '1', name: 'Hamburguesa Clásica Gratis', description: 'Canjeable en tu próximo pedido', date: '2026-03-01' },
-        { id: '2', name: '15% de Descuento', description: 'Válido para toda la cuenta', date: '2026-03-05' }
+        { id: '1', name: 'Hamburguesa Clásica Gratis', description: 'Canjeable en tu próximo pedido', date: '2026-03-01', status: 'active' },
+        { id: '2', name: '15% de Descuento', description: 'Válido para toda la cuenta', date: '2026-03-05', status: 'used' }
       ]
     };
     setUser(newUser);

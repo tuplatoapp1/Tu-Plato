@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, Search, Mail, Phone, Calendar, CreditCard, Star, Trophy, X, MapPin, Crown, ShoppingBag, Clock, TrendingUp, MessageSquare, Heart } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Order } from '../types';
+import { usePublicMenu } from '../context/PublicMenuContext';
 
 interface Customer {
   id: string;
@@ -19,70 +20,15 @@ interface Customer {
   address?: string;
 }
 
-const XP_LEVELS = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 12000];
-
 export default function UserListTab() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { users: customers, xpConfig } = usePublicMenu();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
 
-  useEffect(() => {
-    // Load customers from localStorage
-    const storedCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
-    
-    // Add some mock data if empty for demonstration
-    if (storedCustomers.length === 0) {
-      const mockCustomers: Customer[] = [
-        {
-          id: '1',
-          username: 'juan.perez@email.com',
-          name: 'Juan',
-          lastName: 'Pérez',
-          documentId: '123456789',
-          phone: '+1 234 567 8900',
-          email: 'juan.perez@email.com',
-          birthDate: '1990-05-15',
-          points: 1250,
-          xp: 3400, // VIP Level 6
-          registeredAt: '2025-11-20T10:00:00Z',
-          address: 'Av. Principal 123, Ciudad'
-        },
-        {
-          id: '2',
-          username: 'maria.gomez@email.com',
-          name: 'María',
-          lastName: 'Gómez',
-          documentId: '987654321',
-          phone: '+1 987 654 3210',
-          email: 'maria.gomez@email.com',
-          birthDate: '1988-10-22',
-          points: 450,
-          xp: 1200, // Level 5
-          registeredAt: '2026-01-15T14:30:00Z',
-          address: 'Calle Secundaria 456, Barrio Sur'
-        },
-        {
-          id: '3',
-          username: 'carlos.lopez@email.com',
-          name: 'Carlos',
-          lastName: 'López',
-          documentId: '456123789',
-          phone: '+1 456 123 7890',
-          email: 'carlos.lopez@email.com',
-          birthDate: '1995-03-08',
-          points: 3200,
-          xp: 8500, // VIP Level 9
-          registeredAt: '2025-08-05T09:15:00Z',
-          address: 'Plaza Central 789, Depto 4B'
-        }
-      ];
-      setCustomers(mockCustomers);
-      localStorage.setItem('registered_customers', JSON.stringify(mockCustomers));
-    } else {
-      setCustomers(storedCustomers);
-    }
+  const XP_LEVELS = xpConfig?.xpLevels || [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 12000];
 
+  useEffect(() => {
     // Load orders
     const storedOrders = JSON.parse(localStorage.getItem('customer_orders') || '[]');
     setCustomerOrders(storedOrders);
@@ -106,17 +52,35 @@ export default function UserListTab() {
     }
   };
 
-  const getCustomerLevel = (xp: number = 0) => {
+  const getCustomerLevelInfo = (xp: number = 0) => {
     let currentLevel = 1;
+    let nextLevelXp = XP_LEVELS[1];
+    let prevLevelXp = XP_LEVELS[0];
+
     for (let i = 0; i < XP_LEVELS.length; i++) {
       if (xp >= XP_LEVELS[i]) {
         currentLevel = i + 1;
+        prevLevelXp = XP_LEVELS[i];
+        nextLevelXp = XP_LEVELS[i + 1] || XP_LEVELS[i];
       }
     }
-    return currentLevel;
+
+    let vipBadge = null;
+    if (currentLevel >= 6) {
+      switch (currentLevel) {
+        case 6: vipBadge = { text: 'VIP BRONCE', color: 'bg-amber-100 text-amber-800 border-amber-200' }; break;
+        case 7: vipBadge = { text: 'VIP PLATA', color: 'bg-gray-100 text-gray-800 border-gray-200' }; break;
+        case 8: vipBadge = { text: 'VIP ORO', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }; break;
+        case 9: vipBadge = { text: 'VIP DIAMANTE', color: 'bg-blue-100 text-blue-800 border-blue-200' }; break;
+        case 10: vipBadge = { text: 'VIP PLATINO', color: 'bg-slate-200 text-slate-800 border-slate-300' }; break;
+        default: vipBadge = { text: 'VIP PLATINO', color: 'bg-slate-200 text-slate-800 border-slate-300' }; break;
+      }
+    }
+
+    return { currentLevel, vipBadge };
   };
 
-  const isVIP = (xp: number = 0) => getCustomerLevel(xp) >= 6;
+  const isVIP = (xp: number = 0) => getCustomerLevelInfo(xp).currentLevel >= 6;
 
   // Calculate VIP stats for selected customer
   const vipStats = useMemo(() => {
@@ -259,9 +223,9 @@ export default function UserListTab() {
                   </div>
                 </div>
                 {isVIP(customer.xp) && (
-                  <div className="mt-2 flex items-center justify-center gap-1.5 px-2 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-lg text-xs font-bold w-full">
+                  <div className={`mt-2 flex items-center justify-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold w-full ${getCustomerLevelInfo(customer.xp).vipBadge?.color}`}>
                     <Crown className="w-3.5 h-3.5" />
-                    CLIENTE VIP - NIVEL {getCustomerLevel(customer.xp)}
+                    {getCustomerLevelInfo(customer.xp).vipBadge?.text} - NIVEL {getCustomerLevelInfo(customer.xp).currentLevel}
                   </div>
                 )}
               </div>
@@ -403,7 +367,7 @@ export default function UserListTab() {
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-gray-900">Panel VIP</h3>
-                        <p className="text-sm text-gray-500 font-medium">Nivel {getCustomerLevel(selectedCustomer.xp)} Alcanzado</p>
+                        <p className="text-sm text-gray-500 font-medium">Nivel {getCustomerLevelInfo(selectedCustomer.xp).currentLevel} Alcanzado</p>
                       </div>
                     </div>
 

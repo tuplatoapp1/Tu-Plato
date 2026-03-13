@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles, User, LogOut } from 'lucide-react';
+import { ChefHat, ShoppingCart, Star, Clock, Info, ChevronRight, Phone, MapPin, Instagram, Facebook, Plus, Minus, X, Utensils, ArrowLeft, CheckCircle, Navigation, Search, Flame, Leaf, Sparkles, User, LogOut, Sun, Moon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { MENU_ITEMS, MenuItem, MenuTag } from '../data/menu';
 import { usePublicMenu } from '../context/PublicMenuContext';
@@ -21,7 +21,7 @@ interface CartItem {
 }
 
 export default function PublicMenuPage() {
-  const { branding, offers, menuItems, categories, tags, deliveryZones, isLoading } = usePublicMenu();
+  const { branding, offers, menuItems, categories, tags, deliveryZones, xpConfig, isLoading } = usePublicMenu();
   const { isAuthenticated, user, logout, updateCustomer } = useAuth();
   const navigate = useNavigate();
   const [currentOffer, setCurrentOffer] = useState(0);
@@ -30,6 +30,7 @@ export default function PublicMenuPage() {
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
   const [checkoutStep, setCheckoutStep] = useState(0); // 0: Cart, 1: Info, 2: Location
   const [customerInfo, setCustomerInfo] = useState({
     firstName: user?.name || '',
@@ -44,6 +45,21 @@ export default function PublicMenuPage() {
   const [zoneSearch, setZoneSearch] = useState('');
   const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
   const zoneDropdownRef = useRef<HTMLDivElement>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('menu_theme_mode');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('menu_theme_mode', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('menu_theme_mode', 'light');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (user) {
@@ -140,25 +156,50 @@ export default function PublicMenuPage() {
       const existingOrders = JSON.parse(localStorage.getItem('customer_orders') || '[]');
       localStorage.setItem('customer_orders', JSON.stringify([...existingOrders, newOrder]));
 
-      // Update user XP and Points (1 per $1 spent)
-      const pointsEarned = Math.floor(finalTotal);
+      // Update user XP and Points
+      const pointsEarned = Math.floor(finalTotal * (xpConfig?.xpPerDollar || 10));
       
+      // Award referral bonus if it's the first order
+      let referralBonus = 0;
+      if (user.isFirstOrder && user.referredBy) {
+        // Find the referrer and give them points
+        const registeredCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
+        const referrer = registeredCustomers.find((c: any) => c.id === user.referredBy || c.username === user.referredBy);
+        
+        if (referrer) {
+          const updatedReferrer = {
+            ...referrer,
+            points: (referrer.points || 0) + 200, // 200 points bonus for referring
+            xp: (referrer.xp || 0) + 200
+          };
+          
+          const newRegisteredCustomers = registeredCustomers.map((c: any) => 
+            c.username === referrer.username ? updatedReferrer : c
+          );
+          localStorage.setItem('registered_customers', JSON.stringify(newRegisteredCustomers));
+          
+          // If the referrer is currently logged in (unlikely but possible in same browser), we'd need to update their session too
+          // But usually they are different users.
+        }
+      }
+
       // We need to update the user in AuthContext and also in the registered_customers list
       const updatedUser = {
         ...user,
         xp: (user.xp || 0) + pointsEarned,
-        points: (user.points || 0) + pointsEarned
+        points: (user.points || 0) + pointsEarned,
+        isFirstOrder: false // No longer first order
       };
       
       // This updates the current session
       if (updateCustomer) {
-        updateCustomer({ xp: updatedUser.xp, points: updatedUser.points });
+        updateCustomer({ xp: updatedUser.xp, points: updatedUser.points, isFirstOrder: false });
       }
       
       // Update in registered_customers list
       const registeredCustomers = JSON.parse(localStorage.getItem('registered_customers') || '[]');
       const updatedCustomers = registeredCustomers.map((c: any) => 
-        c.username === user.username ? { ...c, xp: updatedUser.xp, points: updatedUser.points } : c
+        c.username === user.username ? { ...c, xp: updatedUser.xp, points: updatedUser.points, isFirstOrder: false } : c
       );
       localStorage.setItem('registered_customers', JSON.stringify(updatedCustomers));
     }
@@ -306,35 +347,42 @@ export default function PublicMenuPage() {
       )}
 
       {/* Top Banner - Tu Plato */}
-      <header className="bg-tuplato shadow-md sticky top-0 z-40">
+      <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-200">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {branding.logoType === 'image' && branding.logoValue ? (
-              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-white border border-gray-100 flex items-center justify-center shadow-sm">
                 <img src={branding.logoValue} alt="Logo" className="w-full h-full object-contain" />
               </div>
             ) : (
-              <div className="bg-white p-1.5 rounded-lg shadow-sm">
+              <div className="bg-tuplato/10 p-2 rounded-xl">
                 {/* @ts-ignore */}
                 {React.createElement(LucideIcons[branding.logoValue] || ChefHat, { className: "w-6 h-6 text-tuplato" })}
               </div>
             )}
-            <span className="font-bold text-xl text-white tracking-tight">{branding.restaurantName}</span>
+            <span className="font-black text-xl text-gray-900 dark:text-white tracking-tight">{branding.restaurantName}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)} 
+              className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-tuplato/10 hover:text-tuplato transition-all"
+              title={isDarkMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             {isAuthenticated ? (
-              <button onClick={() => navigate('/customer-profile')} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Mi Perfil">
+              <button onClick={() => navigate('/customer-profile')} className="relative p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-tuplato/10 hover:text-tuplato transition-all" title="Mi Perfil">
                 <User className="w-5 h-5" />
               </button>
             ) : (
-              <button onClick={() => navigate('/customer-auth')} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors" title="Iniciar sesión">
+              <button onClick={() => navigate('/customer-auth')} className="relative p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-tuplato/10 hover:text-tuplato transition-all" title="Iniciar sesión">
                 <User className="w-5 h-5" />
               </button>
             )}
-            <button onClick={() => setIsCartOpen(true)} className="relative p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
+            <button onClick={() => setIsCartOpen(true)} className="relative p-2.5 bg-tuplato text-white rounded-xl hover:bg-tuplato-dark transition-all shadow-lg shadow-tuplato/20">
               <ShoppingCart className="w-5 h-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
                   {totalItems}
                 </span>
               )}
@@ -344,20 +392,20 @@ export default function PublicMenuPage() {
       </header>
 
       {/* Search Bar */}
-      <div className="bg-tuplato pb-4 px-4 shadow-md relative z-30">
+      <div className="bg-white dark:bg-gray-900 pb-4 px-4 relative z-30 transition-colors duration-200">
         <div className="max-w-md mx-auto relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar hamburguesa, cerveza..."
+            placeholder="¿Qué te apetece hoy?"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-12 pl-10 pr-10 rounded-xl border-none bg-white/95 backdrop-blur-sm text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-white/50 shadow-inner"
+            className="w-full h-14 pl-12 pr-12 rounded-2xl border-none bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-tuplato/30 transition-all shadow-inner"
           />
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -428,24 +476,26 @@ export default function PublicMenuPage() {
       )}
 
       {/* Category Navigation */}
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <div className="max-w-md mx-auto overflow-x-auto no-scrollbar py-3 px-4 flex gap-3">
+      <div className="sticky top-16 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800 transition-colors duration-200">
+        <div className="max-w-md mx-auto overflow-x-auto no-scrollbar py-4 px-4 flex gap-3">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => scrollToCategory(cat.id)}
-              className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all transform flex items-center gap-2 ${
+              className={`whitespace-nowrap px-6 py-2.5 rounded-2xl text-sm font-black transition-all transform flex items-center gap-2.5 ${
                 activeCategory === cat.id
-                  ? 'bg-tuplato text-white shadow-lg shadow-tuplato/30 scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-tuplato text-white shadow-xl shadow-tuplato/30 scale-105'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              {cat.icon && (cat.icon.startsWith('data:') || cat.icon.startsWith('http')) ? (
-                <img src={cat.icon} alt={cat.label} className="w-4 h-4 object-cover rounded-sm" />
-              ) : (
-                /* @ts-ignore */
-                React.createElement(LucideIcons[cat.icon] || Utensils, { className: "w-4 h-4" })
-              )}
+              <div className={`p-1 rounded-lg ${activeCategory === cat.id ? 'bg-white/20' : 'bg-white dark:bg-gray-700 shadow-sm'}`}>
+                {cat.icon && (cat.icon.startsWith('data:') || cat.icon.startsWith('http')) ? (
+                  <img src={cat.icon} alt={cat.label} className="w-4 h-4 object-cover rounded-sm" />
+                ) : (
+                  /* @ts-ignore */
+                  React.createElement(LucideIcons[cat.icon] || Utensils, { className: `w-4 h-4 ${activeCategory === cat.id ? 'text-white' : 'text-tuplato'}` })
+                )}
+              </div>
               {cat.label}
             </button>
           ))}
@@ -478,7 +528,7 @@ export default function PublicMenuPage() {
                 </span>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-6">
                 <AnimatePresence mode="popLayout">
                   {categoryItems.map((item) => (
                     <motion.div
@@ -487,79 +537,60 @@ export default function PublicMenuPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="bg-white dark:bg-gray-800 rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex gap-4 overflow-hidden relative group active:scale-[0.98] transition-all duration-200"
+                      onClick={() => setSelectedMenuItem(item)}
+                      className="bg-white dark:bg-gray-800 rounded-[2.5rem] p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-4 overflow-hidden relative group cursor-pointer hover:shadow-2xl hover:shadow-tuplato/5 transition-all duration-300"
                     >
-                      {/* Image */}
-                      <div className="w-28 h-28 shrink-0 rounded-xl overflow-hidden relative bg-gray-100 dark:bg-gray-700">
+                      {/* Image Container */}
+                      <div className="w-full aspect-[4/3] rounded-[2rem] overflow-hidden relative bg-gray-100 dark:bg-gray-700">
                         <img 
                           src={item.image} 
                           alt={item.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
+                        <div className="absolute top-4 right-4 flex flex-col gap-2">
+                          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl border border-white/20">
+                            <span className="font-black text-gray-900 dark:text-white text-lg">
+                              ${item.price.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        
                         {!item.isAvailable && (
                           <div className="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-[2px] flex items-center justify-center">
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                            <span className="bg-red-500 text-white text-xs font-black px-4 py-2 rounded-2xl uppercase tracking-widest shadow-xl">
                               Agotado
                             </span>
                           </div>
                         )}
+
+                        {/* Quick Add Button */}
+                        {item.isAvailable && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(item);
+                            }}
+                            className="absolute bottom-4 right-4 w-14 h-14 bg-tuplato text-white rounded-[1.25rem] shadow-2xl shadow-tuplato/40 flex items-center justify-center hover:bg-tuplato-dark hover:scale-110 active:scale-95 transition-all z-10"
+                          >
+                            <Plus className="w-7 h-7" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                          <div className="flex justify-between items-start gap-2 mb-1">
-                            <h4 className="font-bold text-gray-900 dark:text-white leading-tight text-lg">{item.name}</h4>
-                            <span className="font-black text-gray-900 dark:text-white whitespace-nowrap text-lg">
-                              ${item.price.toFixed(2)}
-                            </span>
+                      <div className="px-2 pb-2">
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h4 className="font-black text-gray-900 dark:text-white leading-tight text-xl group-hover:text-tuplato transition-colors">{item.name}</h4>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed mb-4">
+                          {item.description}
+                        </p>
+                        {/* Tags */}
+                        {item.tags && item.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {item.tags.map(tag => renderTagBadge(tag))}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed mb-2">
-                            {item.description}
-                          </p>
-                          {/* Tags */}
-                          {item.tags && item.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                              {item.tags.map(tag => renderTagBadge(tag))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Add to Cart Button */}
-                        <div className="flex justify-end mt-auto">
-                          {cart.find(c => c.menuItem.id === item.id) ? (
-                            <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700 rounded-full p-1 border border-gray-100 dark:border-gray-600">
-                              <button 
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="w-8 h-8 rounded-full bg-white dark:bg-gray-600 text-gray-600 dark:text-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-sm w-4 text-center dark:text-white">
-                                {cart.find(c => c.menuItem.id === item.id)?.quantity}
-                              </span>
-                              <button 
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="w-8 h-8 rounded-full bg-tuplato text-white shadow-sm flex items-center justify-center hover:bg-tuplato-dark transition-colors"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => addToCart(item)}
-                              disabled={!item.isAvailable}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors ${
-                                item.isAvailable 
-                                  ? 'bg-tuplato text-white hover:bg-tuplato-dark shadow-md shadow-tuplato/20' 
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              <Plus className="w-4 h-4" />
-                              Agregar
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -626,6 +657,103 @@ export default function PublicMenuPage() {
         </div>
       </div>
 
+      {/* Item Detail Modal */}
+      <AnimatePresence>
+        {selectedMenuItem && (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedMenuItem(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden relative flex flex-col max-h-[95vh] shadow-2xl"
+            >
+              <button 
+                onClick={() => setSelectedMenuItem(null)}
+                className="absolute top-6 right-6 z-10 p-3 bg-black/20 backdrop-blur-md rounded-2xl text-white hover:bg-black/40 transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="relative h-72 sm:h-80 shrink-0">
+                <img src={selectedMenuItem.image} alt={selectedMenuItem.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-gray-900 via-transparent to-transparent" />
+              </div>
+
+              <div className="p-8 -mt-12 relative bg-white dark:bg-gray-900 rounded-t-[3rem] flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white leading-tight mb-2">{selectedMenuItem.name}</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMenuItem.tags?.map(tag => renderTagBadge(tag))}
+                    </div>
+                  </div>
+                  <div className="bg-tuplato/10 px-4 py-2 rounded-2xl">
+                    <span className="text-2xl font-black text-tuplato">${selectedMenuItem.price.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-8 text-lg">
+                  {selectedMenuItem.description}
+                </p>
+
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">
+                      <Clock className="w-4 h-4 text-tuplato" />
+                      <span className="font-bold">15-20 min</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">
+                      <Flame className="w-4 h-4 text-orange-500" />
+                      <span className="font-bold">450 kcal</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800">
+                {cart.find(c => c.menuItem.id === selectedMenuItem.id) ? (
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6 bg-white dark:bg-gray-900 rounded-[2rem] p-2 border border-gray-100 dark:border-gray-700 shadow-sm flex-1 justify-between">
+                      <button 
+                        onClick={() => updateQuantity(selectedMenuItem.id, -1)}
+                        className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 transition-all active:scale-90"
+                      >
+                        <Minus className="w-6 h-6" />
+                      </button>
+                      <span className="font-black text-2xl dark:text-white">
+                        {cart.find(c => c.menuItem.id === selectedMenuItem.id)?.quantity}
+                      </span>
+                      <button 
+                        onClick={() => updateQuantity(selectedMenuItem.id, 1)}
+                        className="w-12 h-12 rounded-2xl bg-tuplato text-white flex items-center justify-center hover:bg-tuplato-dark transition-all active:scale-90"
+                      >
+                        <Plus className="w-6 h-6" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => addToCart(selectedMenuItem)}
+                    disabled={!selectedMenuItem.isAvailable}
+                    className="w-full bg-tuplato text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-tuplato/30 hover:bg-tuplato-dark active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    Agregar al Pedido
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Cart Modal */}
       <AnimatePresence>
         {isCartOpen && (
@@ -637,120 +765,135 @@ export default function PublicMenuPage() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="bg-white dark:bg-gray-900 w-full max-w-md h-full flex flex-col shadow-2xl transition-colors duration-200"
             >
-              <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                <div className="flex items-center gap-3">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900 sticky top-0 z-10">
+                <div className="flex items-center gap-4">
                   {checkoutStep > 0 && (
-                    <button onClick={() => setCheckoutStep(prev => prev - 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                    <button onClick={() => setCheckoutStep(prev => prev - 1)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all">
                       <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
                   )}
-                  <h2 className="text-lg font-bold flex items-center gap-2 dark:text-white">
-                    {checkoutStep === 0 && <><ShoppingCart className="w-5 h-5 text-tuplato" /> Tu Pedido</>}
-                    {checkoutStep === 1 && <><Info className="w-5 h-5 text-tuplato" /> Tus Datos</>}
-                    {checkoutStep === 2 && <><MapPin className="w-5 h-5 text-tuplato" /> Tu Ubicación</>}
+                  <h2 className="text-xl font-black flex items-center gap-2 dark:text-white tracking-tight">
+                    {checkoutStep === 0 && <><ShoppingCart className="w-6 h-6 text-tuplato" /> Tu Pedido</>}
+                    {checkoutStep === 1 && <><Info className="w-6 h-6 text-tuplato" /> Tus Datos</>}
+                    {checkoutStep === 2 && <><MapPin className="w-6 h-6 text-tuplato" /> Tu Ubicación</>}
                   </h2>
                 </div>
-                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                <button onClick={() => setIsCartOpen(false)} className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
                   <X className="w-5 h-5 dark:text-gray-300" />
                 </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
                 {checkoutStep === 0 && (
                   cart.length === 0 ? (
-                    <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
-                      <ShoppingCart className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                      <p>Tu carrito está vacío</p>
+                    <div className="text-center text-gray-400 dark:text-gray-600 py-20">
+                      <div className="bg-gray-50 dark:bg-gray-800 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                        <ShoppingCart className="w-10 h-10 text-gray-300 dark:text-gray-700" />
+                      </div>
+                      <p className="text-lg font-bold">Tu carrito está vacío</p>
+                      <p className="text-sm mt-1">¡Agrega algo delicioso para empezar!</p>
                     </div>
                   ) : (
-                    cart.map(c => (
-                      <div key={c.menuItem.id} className="flex flex-col gap-2 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm relative">
-                        <div className="flex gap-3 items-center pr-8">
+                    <div className="space-y-4">
+                      {cart.map(c => (
+                        <div key={c.menuItem.id} className="flex flex-col gap-3 bg-white dark:bg-gray-800 p-4 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm relative group">
+                          <div className="flex gap-4 items-center">
+                            <div className="w-20 h-20 shrink-0 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-700">
+                              <img src={c.menuItem.image} alt={c.menuItem.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-black text-gray-900 dark:text-white truncate pr-6">{c.menuItem.name}</h4>
+                              <p className="text-tuplato font-black text-lg">${(c.menuItem.price * c.quantity).toFixed(2)}</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-1 bg-gray-50 dark:bg-gray-700 rounded-2xl p-1">
+                              <button onClick={() => updateQuantity(c.menuItem.id, 1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-600 rounded-xl shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato transition-all active:scale-90">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              <span className="text-sm font-black w-6 text-center dark:text-white py-1">{c.quantity}</span>
+                              <button onClick={() => updateQuantity(c.menuItem.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-600 rounded-xl shadow-sm text-gray-600 dark:text-gray-300 hover:text-red-500 transition-all active:scale-90">
+                                <Minus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Notas especiales (sin cebolla, extra salsa...)"
+                              value={c.notes || ''}
+                              onChange={(e) => updateNotes(c.menuItem.id, e.target.value)}
+                              className="w-full text-xs p-3.5 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-tuplato/20 outline-none transition-all"
+                            />
+                          </div>
                           <button 
                             onClick={() => removeFromCart(c.menuItem.id)}
-                            className="absolute top-2 right-2 p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                            title="Eliminar producto"
+                            className="absolute -top-2 -right-2 w-8 h-8 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all"
                           >
                             <X className="w-4 h-4" />
                           </button>
-                          <img src={c.menuItem.image} alt={c.menuItem.name} className="w-16 h-16 object-cover rounded-lg" />
-                          <div className="flex-1">
-                            <h4 className="font-bold text-sm line-clamp-1 pr-2 dark:text-white">{c.menuItem.name}</h4>
-                            <p className="text-tuplato font-bold text-sm">${(c.menuItem.price * c.quantity).toFixed(2)}</p>
-                          </div>
-                          <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
-                            <button onClick={() => updateQuantity(c.menuItem.id, -1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-sm font-bold w-4 text-center dark:text-white">{c.quantity}</span>
-                            <button onClick={() => updateQuantity(c.menuItem.id, 1)} className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-600 rounded shadow-sm text-gray-600 dark:text-gray-300 hover:text-tuplato">
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
                         </div>
-                        <div className="mt-1">
-                          <input
-                            type="text"
-                            placeholder="Ej. Sin tomate, extra salsa..."
-                            value={c.notes || ''}
-                            onChange={(e) => updateNotes(c.menuItem.id, e.target.value)}
-                            className="w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:ring-1 focus:ring-tuplato outline-none"
-                          />
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )
                 )}
 
                 {checkoutStep === 1 && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
-                      <input 
-                        type="text" 
-                        value={customerInfo.firstName} 
-                        onChange={e => setCustomerInfo({...customerInfo, firstName: e.target.value})} 
-                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none" 
-                        placeholder="Tu nombre" 
-                      />
+                  <div className="space-y-6">
+                    <div className="bg-tuplato/5 p-6 rounded-[2rem] border border-tuplato/10">
+                      <p className="text-sm text-tuplato font-bold leading-relaxed">
+                        Necesitamos tus datos básicos para procesar el pedido y que ganes tus puntos de recompensa.
+                      </p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Apellido</label>
-                      <input 
-                        type="text" 
-                        value={customerInfo.lastName} 
-                        onChange={e => setCustomerInfo({...customerInfo, lastName: e.target.value})} 
-                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none" 
-                        placeholder="Tu apellido" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cédula / ID</label>
-                      <input 
-                        type="text" 
-                        value={customerInfo.documentId} 
-                        onChange={e => setCustomerInfo({...customerInfo, documentId: e.target.value})} 
-                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none" 
-                        placeholder="Número de documento" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono de Contacto</label>
-                      <input 
-                        type="tel" 
-                        value={customerInfo.phone} 
-                        onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} 
-                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none" 
-                        placeholder="Tu número de celular" 
-                      />
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Nombre</label>
+                          <input 
+                            type="text" 
+                            value={customerInfo.firstName} 
+                            onChange={e => setCustomerInfo({...customerInfo, firstName: e.target.value})} 
+                            className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none transition-all" 
+                            placeholder="Tu nombre" 
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Apellido</label>
+                          <input 
+                            type="text" 
+                            value={customerInfo.lastName} 
+                            onChange={e => setCustomerInfo({...customerInfo, lastName: e.target.value})} 
+                            className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none transition-all" 
+                            placeholder="Tu apellido" 
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Cédula / ID</label>
+                        <input 
+                          type="text" 
+                          value={customerInfo.documentId} 
+                          onChange={e => setCustomerInfo({...customerInfo, documentId: e.target.value})} 
+                          className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none transition-all" 
+                          placeholder="Número de documento" 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Teléfono de Contacto</label>
+                        <input 
+                          type="tel" 
+                          value={customerInfo.phone} 
+                          onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} 
+                          className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none transition-all" 
+                          placeholder="Tu número de celular" 
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {checkoutStep === 2 && (
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zona de Entrega</label>
+                  <div className="space-y-6">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Zona de Entrega</label>
                       <div className="relative" ref={zoneDropdownRef}>
                         {!isZoneDropdownOpen ? (
                           <button
@@ -759,30 +902,36 @@ export default function PublicMenuPage() {
                               setIsZoneDropdownOpen(true);
                               if (selectedZone) setZoneSearch('');
                             }}
-                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-left text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
+                            className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-left text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none transition-all flex justify-between items-center"
                           >
                             {selectedZone ? (
-                              <span className="block truncate pr-16">{selectedZone.name}</span>
+                              <span className="block truncate pr-10">{selectedZone.name}</span>
                             ) : zoneSearch ? (
-                              <span className="block truncate pr-16">{zoneSearch}</span>
+                              <span className="block truncate pr-10">{zoneSearch}</span>
                             ) : (
-                              <span className="text-gray-400 dark:text-gray-500 block truncate pr-16">Buscar tu barrio o zona...</span>
+                              <span className="text-gray-400 dark:text-gray-500 block truncate pr-10">¿Dónde te lo llevamos?</span>
                             )}
+                            <ChevronRight className={`w-5 h-5 transition-transform ${isZoneDropdownOpen ? 'rotate-90' : ''}`} />
                           </button>
                         ) : (
                           <input
                             type="text"
+                            autoFocus
                             value={zoneSearch}
                             onChange={(e) => {
                               setZoneSearch(e.target.value);
-                              if (selectedZoneId) setSelectedZoneId(''); // Clear selection if typing
+                              if (selectedZoneId) setSelectedZoneId(''); 
                             }}
                             placeholder="Buscar tu barrio o zona..."
-                            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none"
+                            className="w-full p-4 rounded-2xl border border-tuplato dark:border-tuplato bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 outline-none transition-all shadow-xl"
                           />
                         )}
                         {isZoneDropdownOpen && (
-                          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-20 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl max-h-60 overflow-y-auto no-scrollbar"
+                          >
                             {filteredZones.length > 0 ? (
                               filteredZones.map(zone => (
                                 <button
@@ -792,34 +941,35 @@ export default function PublicMenuPage() {
                                     setZoneSearch(zone.name);
                                     setIsZoneDropdownOpen(false);
                                   }}
-                                  className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center border-b border-gray-50 dark:border-gray-700 last:border-0"
+                                  className="w-full text-left px-5 py-4 hover:bg-tuplato/5 dark:hover:bg-tuplato/10 flex justify-between items-center border-b border-gray-50 dark:border-gray-700 last:border-0 transition-colors"
                                 >
-                                  <span className="font-medium text-gray-900 dark:text-white">{zone.name}</span>
-                                  <span className="text-sm font-bold text-green-600 dark:text-green-400">+${zone.price.toFixed(2)}</span>
+                                  <span className="font-bold text-gray-900 dark:text-white">{zone.name}</span>
+                                  <span className="text-sm font-black text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-3 py-1 rounded-lg">+${zone.price.toFixed(2)}</span>
                                 </button>
                               ))
                             ) : (
-                              <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                                No encontramos esa zona.
+                              <div className="p-8 text-center text-gray-400 dark:text-gray-600">
+                                <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                <p className="text-sm font-bold">No encontramos esa zona</p>
                               </div>
                             )}
-                          </div>
+                          </motion.div>
                         )}
                         {selectedZone && !isZoneDropdownOpen && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 font-bold text-sm pointer-events-none">
+                          <div className="absolute right-12 top-1/2 -translate-y-1/2 text-green-600 dark:text-green-400 font-black text-sm pointer-events-none bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-lg">
                             +${selectedZone.price.toFixed(2)}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección / Referencia</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2">Dirección Exacta</label>
                       <textarea 
                         rows={3} 
                         value={locationInfo.address} 
                         onChange={e => setLocationInfo({...locationInfo, address: e.target.value})} 
-                        className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-tuplato/20 focus:border-tuplato outline-none resize-none" 
+                        className="w-full p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold focus:ring-4 focus:ring-tuplato/10 focus:border-tuplato outline-none resize-none transition-all" 
                         placeholder="Ej: Calle 123, Casa 4. Referencia: Frente al parque." 
                       />
                     </div>
@@ -828,61 +978,63 @@ export default function PublicMenuPage() {
               </div>
 
               {cart.length > 0 && (
-                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-[0_-20px_40px_rgba(0,0,0,0.02)]">
                   {checkoutStep === 0 && (
-                    <>
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-gray-600 dark:text-gray-400 font-medium">
-                          Subtotal
-                          <span className="block text-xs text-gray-400 dark:text-gray-500 font-normal mt-0.5">Sin incluir delivery</span>
-                        </span>
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white">${totalPrice.toFixed(2)}</span>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Subtotal de productos</p>
+                          <p className="text-sm text-gray-400 dark:text-gray-500">Sin incluir delivery</p>
+                        </div>
+                        <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">${totalPrice.toFixed(2)}</span>
                       </div>
                       <button 
                         onClick={() => setCheckoutStep(1)}
-                        className="w-full bg-tuplato text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-tuplato/30 hover:bg-tuplato-dark transition-colors"
+                        className="w-full bg-tuplato text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-tuplato/30 hover:bg-tuplato-dark hover:scale-[1.02] active:scale-[0.98] transition-all"
                       >
-                        Continuar
+                        Continuar Pedido
                       </button>
-                    </>
+                    </div>
                   )}
                   
                   {checkoutStep === 1 && (
                     <button 
                       onClick={() => setCheckoutStep(2)}
                       disabled={!customerInfo.firstName || !customerInfo.lastName || !customerInfo.phone}
-                      className="w-full bg-tuplato text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-tuplato/30 hover:bg-tuplato-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-tuplato text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-tuplato/30 hover:bg-tuplato-dark hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Siguiente Paso
                     </button>
                   )}
 
                   {checkoutStep === 2 && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                        <span>Subtotal</span>
-                        <span>${totalPrice.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                        <span>Envío ({selectedZone ? selectedZone.name : 'Por definir'})</span>
-                        <span className="font-medium text-green-600 dark:text-green-400">
-                          {selectedZone ? `+$${selectedZone.price.toFixed(2)}` : '$0.00'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <span className="font-bold text-lg text-gray-900 dark:text-white">Total a Pagar</span>
-                        <span className="font-bold text-2xl text-tuplato">
-                          ${(totalPrice + (selectedZone?.price || 0)).toFixed(2)}
-                        </span>
+                    <div className="space-y-6">
+                      <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-[2rem] space-y-3">
+                        <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
+                          <span>Subtotal</span>
+                          <span>${totalPrice.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold text-gray-500 dark:text-gray-400">
+                          <span>Envío ({selectedZone ? selectedZone.name : 'Por definir'})</span>
+                          <span className="text-green-600 dark:text-green-400">
+                            {selectedZone ? `+$${selectedZone.price.toFixed(2)}` : '$0.00'}
+                          </span>
+                        </div>
+                        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                          <span className="font-black text-xl text-gray-900 dark:text-white">Total Final</span>
+                          <span className="font-black text-3xl text-tuplato tracking-tighter">
+                            ${(totalPrice + (selectedZone?.price || 0)).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
 
                       <button 
                         onClick={handleFinishOrder}
-                        disabled={!locationInfo.address && !locationInfo.mapLink}
-                        className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-green-600/30 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                        disabled={!locationInfo.address || !selectedZoneId}
+                        className="w-full bg-green-600 text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl shadow-green-600/30 hover:bg-green-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                       >
-                        <Phone className="w-5 h-5" />
-                        Enviar Pedido por WhatsApp
+                        <Phone className="w-6 h-6" />
+                        Pedir por WhatsApp
                       </button>
                     </div>
                   )}

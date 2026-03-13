@@ -6,3 +6,15 @@
   --color-tuplato-light: #4a7c65;
   --color-tuplato-bg: #f2f7f5;
 }
+
+.dark {
+  --color-gray-950: #0a1410;
+  --color-gray-900: #12241c;
+  --color-gray-800: #1a3328;
+  --color-gray-700: #244738;
+  --color-gray-600: #2e5c48;
+  --color-gray-400: #a3b8ae;
+  --color-gray-300: #cbd9d2;
+  --color-gray-200: #e2e9e5;
+  --color-gray-100: #f0f4f2;
+}

@@ -19,9 +19,11 @@ export function BurgerMascot({ level, className = '', customImage, customVideo }
     : (isMid ? '/assets/mascot/level3.webm' : '/assets/mascot/level1.webm');
 
   const videoSrc = customVideo || defaultVideo;
+  const [videoError, setVideoError] = React.useState(false);
 
   // Ensure video plays correctly on source change
   useEffect(() => {
+    setVideoError(false);
     if (videoRef.current) {
       videoRef.current.load();
     }
@@ -29,8 +31,11 @@ export function BurgerMascot({ level, className = '', customImage, customVideo }
 
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
+      {/* Background Glow */}
+      <div className="absolute inset-0 bg-tuplato/5 rounded-full blur-3xl scale-75 animate-pulse" />
+
       {/* Priority 1: Custom Video */}
-      {customVideo ? (
+      {customVideo && !videoError ? (
         <video
           ref={videoRef}
           key={customVideo}
@@ -38,6 +43,7 @@ export function BurgerMascot({ level, className = '', customImage, customVideo }
           loop
           muted
           playsInline
+          onError={() => setVideoError(true)}
           className="relative z-20 w-full h-full object-contain pointer-events-none"
         >
           <source src={customVideo} type="video/webm" />
@@ -55,20 +61,27 @@ export function BurgerMascot({ level, className = '', customImage, customVideo }
       ) : (
         /* Priority 3: Default Video with SVG Fallback */
         <div className="relative w-full h-full flex items-center justify-center">
-          <video
-            ref={videoRef}
-            key={defaultVideo}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="relative z-20 w-full h-full object-contain pointer-events-none"
-          >
-            <source src={defaultVideo} type="video/webm" />
+          {!videoError ? (
+            <video
+              ref={videoRef}
+              key={defaultVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
+              onError={() => setVideoError(true)}
+              className="relative z-20 w-full h-full object-contain pointer-events-none"
+            >
+              <source src={defaultVideo} type="video/webm" />
+            </video>
+          ) : (
             <MascotFallback level={level} />
-          </video>
+          )}
         </div>
       )}
+      
+      {/* Always show fallback if video fails or is loading (optional, but here we use it as true fallback) */}
+      {videoError && !customImage && <MascotFallback level={level} />}
     </div>
   );
 }
@@ -79,7 +92,7 @@ function MascotFallback({ level }: { level: number }) {
   const isVip = level >= 6;
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 scale-75">
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-80">
       <svg width="100%" height="100%" viewBox="0 0 100 120" className="overflow-visible">
         <defs>
           <radialGradient id="fallbackGrad" cx="50%" cy="50%" r="50%">

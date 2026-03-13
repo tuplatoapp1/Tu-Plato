@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { Button } from '../components/ui/Button';
@@ -13,6 +13,8 @@ export default function CustomerAuthPage() {
   const { loginCustomer } = useAuth();
   const { appLogo } = useUI();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get('ref');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -50,7 +52,9 @@ export default function CustomerAuthPage() {
         points: 0,
         xp: 0,
         prizes: [],
-        registeredAt: new Date().toISOString()
+        registeredAt: new Date().toISOString(),
+        referredBy: referralCode || undefined,
+        isFirstOrder: true
       };
       
       // Save to registered customers list

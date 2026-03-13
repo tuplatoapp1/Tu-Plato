@@ -28,7 +28,11 @@ export interface User {
   role?: 'admin' | 'customer';
   points?: number;
   xp?: number;
-  prizes?: { id: string; name: string; description: string; date: string }[];
+  completedSurveys?: string[];
+  prizes?: { id: string; name: string; description: string; date: string; status: 'active' | 'used' }[];
+  id?: string;
+  referredBy?: string;
+  isFirstOrder?: boolean;
 }
 
 export interface InventoryItem {
